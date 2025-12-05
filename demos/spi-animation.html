@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPI 通信协议动画演示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+
+        :root {
+            --bg-color: #0f1115;
+            --panel-bg: #161b22;
+            --accent-blue: #3b82f6;
+            --accent-orange: #f97316;
+            --accent-green: #22c55e;
+            --accent-yellow: #eab308;
+            --wire-inactive: #374151;
+            --cursor: #60a5fa;
+            --marker: #f87171;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            background-color: transparent;
+            color: #e5e7eb;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        .device-box {
+            background: linear-gradient(145deg, #1e2329, #161b22);
+            box-shadow: 2px 2px 5px #0b0d10, -2px -2px 5px #212934;
+            position: relative;
+            /* Z-index higher than particles so particles go "under" */
+            z-index: 30; 
+        }
+
+        .pin-connector {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #6b7280;
+            border-radius: 50%;
+            border: 1px solid #9ca3af;
+            /* Z-index very high to sit on top of everything */
+            z-index: 40;
+            box-shadow: 0 0 2px rgba(0,0,0,0.5);
+            /* Center vertically on the line */
+            transform: translateY(-50%);
+        }
+
+        .bit-packet {
+            filter: drop-shadow(0 0 4px currentColor);
+            /* Z-index lower than device box */
+            z-index: 20;
+        }
+
+        .scope-container {
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 6px;
+            position: relative;
+            overflow: hidden;
+            cursor: crosshair; 
+        }
+        
+        .scope-legend {
+            pointer-events: none;
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid #444;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            white-space: pre;
+            position: absolute;
+            z-index: 50;
+            display: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+        }
+
+        /* Bit styling for Shift Register */
+        .bit { transition: all 0.2s; display: inline-block; width: 8px; text-align: center; }
+        .bit.pending { color: #fff; opacity: 0.9; }
+        .bit.active { color: #fff; font-weight: bold; transform: scale(1.3); text-shadow: 0 0 5px currentColor; }
+        .bit.sent { color: #555; opacity: 0.5; }
+    </style>
+</head>
+<body class="p-0">
+
+    <!-- Main Container -->
+    <div class="w-full h-full bg-[#0f1115] overflow-hidden flex flex-col">
+        
+        <!-- Header (Compact) -->
+        <div class="flex justify-between items-center bg-gray-800/60 px-4 py-2 border-b border-gray-700 flex-shrink-0">
+            <div class="flex items-baseline space-x-2">
+                <h1 class="text-lg font-bold text-blue-400">SPI 演示</h1>
+                <span class="text-[10px] text-gray-500 mono">Mode 0 (CPOL=0, CPHA=0)</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" id="status-led"></span>
+                <span class="text-[10px] text-gray-400 mono" id="status-text">IDLE</span>
+            </div>
+        </div>
+
+        <div class="p-3 space-y-3 flex-1 flex flex-col min-h-0">
+            
+            <!-- Devices & Wiring Area -->
+            <!-- 
+                 Crucial Fixes:
+                 1. aspect-[10/3] matches 600/180 exactly.
+                 2. SVG preserveAspectRatio="none" ensures wires stretch to hit percentage targets exactly.
+            -->
+            <div class="relative w-full flex-[2] min-h-[120px] select-none bg-gray-900/20 rounded-lg border border-gray-800/50">
+                
+                <!-- SVG Wiring Layer -->
+                <!-- preserveAspectRatio="none" is key here! It forces the lines to connect. -->
+                <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 600 180" preserveAspectRatio="none" id="wiring-svg">
+                    <path d="M 120 40 L 480 40" stroke="var(--wire-inactive)" stroke-width="2" fill="none" id="wire-cs" />
+                    <path d="M 120 70 L 480 70" stroke="var(--wire-inactive)" stroke-width="2" fill="none" id="wire-sck" />
+                    <path d="M 120 100 L 480 100" stroke="var(--wire-inactive)" stroke-width="2" fill="none" id="wire-mosi" />
+                    <path d="M 120 130 L 480 130" stroke="var(--wire-inactive)" stroke-width="2" fill="none" id="wire-miso" />
+
+                    <!-- Labels centered in the wire gap -->
+                    <text x="300" y="32" fill="#6b7280" font-size="9" text-anchor="middle" class="mono">CS</text>
+                    <text x="300" y="62" fill="#6b7280" font-size="9" text-anchor="middle" class="mono">SCK</text>
+                    <text x="300" y="92" fill="#6b7280" font-size="9" text-anchor="middle" class="mono">MOSI</text>
+                    <text x="300" y="122" fill="#6b7280" font-size="9" text-anchor="middle" class="mono">MISO</text>
+                </svg>
+                
+                <div id="particles" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
+
+                <!-- Master Device Wrapper (Exactly 20% width) -->
+                <div class="absolute left-0 top-0 bottom-0 w-[20%] flex items-center justify-end pr-0">
+                    <!-- Device Box -->
+                    <div class="w-full h-[90%] device-box rounded-r-lg rounded-l-md border border-gray-700 flex flex-col items-center justify-center relative py-1 mr-[-4px]">
+                        <div class="text-blue-500 font-bold text-[10px] tracking-wider mb-1">MASTER</div>
+                        <div class="w-[90%] bg-black/50 rounded border border-gray-700/50 p-1 mb-1">
+                            <div class="text-[8px] text-gray-500 text-center mb-0.5">SHIFT REG</div>
+                            <div class="flex justify-center font-mono text-xs tracking-tighter" id="master-bits"></div>
+                        </div>
+                        <div class="text-[9px] text-gray-400 mono" id="master-hex-label">0x00</div>
+                    </div>
+
+                    <!-- Pins (Aligned to 20% line via wrapper edge) -->
+                    <!-- Top percentages match SVG Y coords: 40/180=22.2%, 70/180=38.9%, 100/180=55.6%, 130/180=72.2% -->
+                    <!-- transform: translateY(-50%) centers them vertically on the line -->
+                    <div class="absolute right-[-4px] top-[22.22%] pin-connector"></div>
+                    <div class="absolute right-[-4px] top-[38.89%] pin-connector"></div>
+                    <div class="absolute right-[-4px] top-[55.56%] pin-connector"></div>
+                    <div class="absolute right-[-4px] top-[72.22%] pin-connector"></div>
+                </div>
+
+                <!-- Slave Device Wrapper (Exactly 20% width from right) -->
+                <div class="absolute right-0 top-0 bottom-0 w-[20%] flex items-center justify-start pl-0">
+                    <!-- Device Box -->
+                    <div class="w-full h-[90%] device-box rounded-l-lg rounded-r-md border border-gray-700 flex flex-col items-center justify-center relative py-1 ml-[-4px]">
+                        <div class="text-orange-500 font-bold text-[10px] tracking-wider mb-1">SLAVE</div>
+                        <div class="w-[90%] bg-black/50 rounded border border-gray-700/50 p-1 mb-1">
+                            <div class="text-[8px] text-gray-500 text-center mb-0.5">SHIFT REG</div>
+                            <div class="flex justify-center font-mono text-xs tracking-tighter" id="slave-bits"></div>
+                        </div>
+                        <div class="text-[9px] text-gray-400 mono" id="slave-hex-label">0x00</div>
+                    </div>
+
+                    <!-- Pins -->
+                    <div class="absolute left-[-4px] top-[22.22%] pin-connector"></div>
+                    <div class="absolute left-[-4px] top-[38.89%] pin-connector"></div>
+                    <div class="absolute left-[-4px] top-[55.56%] pin-connector"></div>
+                    <div class="absolute left-[-4px] top-[72.22%] pin-connector"></div>
+                </div>
+            </div>
+
+            <!-- Logic Analyzer -->
+            <div class="relative flex-1 min-h-[80px] flex flex-col">
+                <div class="absolute top-1 right-1 flex space-x-2 z-10">
+                    <button onclick="clearMarkers()" class="text-[9px] text-red-400 hover:text-red-300 bg-black/60 px-1.5 py-0.5 rounded border border-red-900/50">清屏</button>
+                </div>
+                <div class="scope-container flex-1 w-full group relative">
+                    <canvas id="scopeCanvas" class="w-full h-full block"></canvas>
+                    <div id="scope-tooltip" class="scope-legend"></div>
+                </div>
+            </div>
+
+            <!-- Controls Toolbar -->
+            <div class="flex items-center justify-between bg-gray-800/30 p-2 rounded-lg border border-gray-700 flex-shrink-0">
+                <div class="flex items-center gap-2">
+                    <button onclick="togglePause()" id="btn-pause" class="bg-gray-700 hover:bg-gray-600 text-white p-1.5 rounded transition-colors shadow-sm flex-shrink-0" title="暂停/继续">
+                        <svg id="icon-pause" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <svg id="icon-play" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </button>
+                    <div class="flex items-center bg-gray-900 rounded border border-gray-700 px-2 py-1">
+                        <span class="text-[10px] text-gray-500 mr-1">DATA:</span>
+                        <input type="text" id="input-hex" value="A5" maxlength="2" class="bg-transparent text-white text-xs w-6 text-center uppercase mono focus:outline-none" placeholder="FF">
+                    </div>
+                    <button onclick="startTransmission()" id="btn-send" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1 px-3 rounded shadow-sm transition-colors whitespace-nowrap">发送</button>
+                </div>
+                <button id="btn-speed" onclick="cycleSpeed()" class="text-[10px] mono font-bold text-gray-400 hover:text-white px-2 py-1 bg-gray-800 rounded border border-gray-600 min-w-[50px] text-center">X 1.0</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration & State ---
+        const CONFIG = {
+            colors: {
+                bg: '#000000', cs: '#ffffff', sck: '#facc15', mosi: '#4ade80', miso: '#fb923c', 
+                cursor: '#60a5fa', marker: '#f87171', wireInactive: '#374151'
+            },
+            layout: { rowHeight: 20, paddingTop: 8 }
+        };
+
+        const SPEED_OPTIONS = [1, 0.5, 0.2, 1.5];
+        
+        const STATE = {
+            isTransmitting: false, isPaused: false,
+            masterByte: 0x00, slaveByte: 0x00, subStep: 0,
+            speedIndex: 0, speedMultiplier: 1.0,
+            history: [], maxHistory: 600,
+            mouseX: -1, mouseY: -1, isMouseOver: false, markers: [] 
+        };
+
+        // --- DOM Elements ---
+        const els = {
+            inputHex: document.getElementById('input-hex'),
+            btnSend: document.getElementById('btn-send'),
+            btnPause: document.getElementById('btn-pause'),
+            iconPause: document.getElementById('icon-pause'),
+            iconPlay: document.getElementById('icon-play'),
+            btnSpeed: document.getElementById('btn-speed'),
+            masterBits: document.getElementById('master-bits'),
+            slaveBits: document.getElementById('slave-bits'),
+            masterHex: document.getElementById('master-hex-label'),
+            slaveHex: document.getElementById('slave-hex-label'),
+            statusLed: document.getElementById('status-led'),
+            statusText: document.getElementById('status-text'),
+            particles: document.getElementById('particles'),
+            wires: {
+                cs: document.getElementById('wire-cs'),
+                sck: document.getElementById('wire-sck'),
+                mosi: document.getElementById('wire-mosi'),
+                miso: document.getElementById('wire-miso')
+            },
+            canvas: document.getElementById('scopeCanvas'),
+            tooltip: document.getElementById('scope-tooltip')
+        };
+
+        const ctx = els.canvas.getContext('2d');
+
+        // --- Initialization ---
+        function init() {
+            updateRegisterDisplay(0, els.masterBits, -1);
+            updateRegisterDisplay(0, els.slaveBits, -1);
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            setupCanvasInteraction();
+            requestAnimationFrame(loop);
+        }
+
+        function resizeCanvas() {
+            const rect = els.canvas.parentElement.getBoundingClientRect();
+            els.canvas.width = rect.width;
+            els.canvas.height = rect.height;
+            STATE.maxHistory = rect.width;
+        }
+
+        function setupCanvasInteraction() {
+            els.canvas.addEventListener('mousemove', (e) => {
+                const rect = els.canvas.getBoundingClientRect();
+                STATE.mouseX = e.clientX - rect.left;
+                STATE.mouseY = e.clientY - rect.top;
+                STATE.isMouseOver = true;
+            });
+            els.canvas.addEventListener('mouseleave', () => {
+                STATE.isMouseOver = false;
+                STATE.mouseX = -1;
+                els.tooltip.style.display = 'none';
+            });
+            els.canvas.addEventListener('click', () => {
+                if (STATE.isMouseOver) STATE.markers.push(STATE.mouseX);
+            });
+        }
+
+        function clearMarkers() { STATE.markers = []; }
+
+        function updateRegisterDisplay(byteVal, container, activeIndex, isSending = false) {
+            container.innerHTML = '';
+            for (let i = 7; i >= 0; i--) {
+                const bitVal = (byteVal >> i) & 1;
+                const span = document.createElement('span');
+                span.textContent = bitVal;
+                span.className = 'bit';
+                if (activeIndex === -1) span.classList.add('pending');
+                else if (i === activeIndex && isSending) {
+                    span.classList.add('active');
+                    if(container.id === 'master-bits') span.style.color = bitVal ? '#4ade80' : '#22c55e';
+                    else span.style.color = bitVal ? '#fb923c' : '#f97316';
+                } else if (i > activeIndex) span.classList.add('sent');
+                else span.classList.add('pending');
+                container.appendChild(span);
+            }
+        }
+
+        function cycleSpeed() {
+            STATE.speedIndex = (STATE.speedIndex + 1) % SPEED_OPTIONS.length;
+            STATE.speedMultiplier = SPEED_OPTIONS[STATE.speedIndex];
+            els.btnSpeed.textContent = `X ${STATE.speedMultiplier}`;
+        }
+
+        function togglePause() {
+            STATE.isPaused = !STATE.isPaused;
+            if (STATE.isPaused) {
+                els.iconPause.classList.add('hidden');
+                els.iconPlay.classList.remove('hidden');
+                els.statusText.textContent = "PAUSED";
+                els.statusLed.classList.remove('animate-pulse');
+            } else {
+                els.iconPause.classList.remove('hidden');
+                els.iconPlay.classList.add('hidden');
+                if (STATE.isTransmitting) {
+                    els.statusText.textContent = "BUSY";
+                    els.statusLed.classList.add('animate-pulse');
+                } else els.statusText.textContent = "IDLE";
+            }
+        }
+
+        function startTransmission() {
+            if (STATE.isTransmitting) return;
+            if (STATE.isPaused) togglePause();
+            let hex = els.inputHex.value.replace(/[^0-9A-Fa-f]/g, '');
+            if (!hex) hex = "00";
+            STATE.masterByte = parseInt(hex, 16);
+            STATE.slaveByte = (~STATE.masterByte) & 0xFF;
+
+            STATE.isTransmitting = true;
+            STATE.subStep = 0; 
+            
+            els.masterHex.textContent = '0x' + STATE.masterByte.toString(16).toUpperCase().padStart(2, '0');
+            els.slaveHex.textContent = '???';
+            updateRegisterDisplay(STATE.masterByte, els.masterBits, 7, true);
+            updateRegisterDisplay(STATE.slaveByte, els.slaveBits, 7, true);
+
+            els.btnSend.disabled = true;
+            els.btnSend.classList.add('opacity-50', 'cursor-not-allowed');
+            els.statusText.textContent = "BUSY";
+            els.statusLed.classList.remove('bg-green-500');
+            els.statusLed.classList.add('bg-red-500');
+            updateSignals(0, 0, 0, 0); 
+        }
+
+        function endTransmission() {
+            STATE.isTransmitting = false;
+            els.slaveHex.textContent = '0x' + STATE.slaveByte.toString(16).toUpperCase().padStart(2, '0');
+            updateRegisterDisplay(STATE.masterByte, els.masterBits, -1);
+            updateRegisterDisplay(STATE.slaveByte, els.slaveBits, -1);
+            els.btnSend.disabled = false;
+            els.btnSend.classList.remove('opacity-50', 'cursor-not-allowed');
+            els.statusText.textContent = "IDLE";
+            els.statusLed.classList.add('bg-green-500');
+            els.statusLed.classList.remove('bg-red-500');
+            resetWires();
+        }
+
+        function getBit(byte, index) { return (byte >> index) & 1; }
+
+        function loop() {
+            if (!STATE.isPaused) updateLogic();
+            drawScope();
+            requestAnimationFrame(loop);
+        }
+
+        function updateLogic() {
+            let cs = 1, sck = 0, mosi = 0, miso = 0;
+            if (STATE.isTransmitting) {
+                cs = 0; 
+                const speed = 1.0 * STATE.speedMultiplier; 
+                STATE.subStep += speed;
+
+                const CYCLE_LENGTH = 60; 
+                const totalCycle = Math.floor(STATE.subStep / CYCLE_LENGTH);
+                const phaseProgress = STATE.subStep % CYCLE_LENGTH;
+                let currentBitIndex = 7 - totalCycle;
+
+                if (currentBitIndex < 0) {
+                    if (phaseProgress > 20) { endTransmission(); STATE.subStep = 0; }
+                    else { cs = 0; sck = 0; mosi = 0; miso = 0; }
+                } else {
+                    if (phaseProgress === 0 || Math.floor(STATE.subStep) <= Math.ceil(speed)) {
+                         updateRegisterDisplay(STATE.masterByte, els.masterBits, currentBitIndex, true);
+                         updateRegisterDisplay(STATE.slaveByte, els.slaveBits, currentBitIndex, true);
+                    }
+                    mosi = getBit(STATE.masterByte, currentBitIndex);
+                    miso = getBit(STATE.slaveByte, currentBitIndex);
+
+                    if (phaseProgress > (CYCLE_LENGTH * 0.25) && phaseProgress < (CYCLE_LENGTH * 0.75)) {
+                        sck = 1;
+                        if (!STATE.particleSpawned && phaseProgress > (CYCLE_LENGTH * 0.26)) {
+                            spawnParticle('mosi', mosi);
+                            spawnParticle('miso', miso);
+                            STATE.particleSpawned = true;
+                        }
+                    } else { sck = 0; STATE.particleSpawned = false; }
+                }
+            }
+            STATE.history.push({ cs, sck, mosi, miso });
+            if (STATE.history.length > STATE.maxHistory) STATE.history.shift();
+            updateWireVisuals(cs, sck, mosi, miso);
+        }
+
+        function updateSignals(cs, sck, mosi, miso) {}
+
+        function updateWireVisuals(cs, sck, mosi, miso) {
+            const setWire = (el, active, color) => {
+                el.style.stroke = active ? color : CONFIG.colors.wireInactive;
+                el.style.strokeWidth = active ? 3 : 2;
+                el.style.filter = active ? `drop-shadow(0 0 5px ${color})` : 'none';
+            };
+            setWire(els.wires.cs, cs === 0, CONFIG.colors.cs);
+            setWire(els.wires.sck, sck === 1, CONFIG.colors.sck);
+            if (STATE.isTransmitting) {
+                setWire(els.wires.mosi, mosi === 1, CONFIG.colors.mosi);
+                setWire(els.wires.miso, miso === 1, CONFIG.colors.miso);
+            } else {
+                setWire(els.wires.mosi, false, CONFIG.colors.mosi);
+                setWire(els.wires.miso, false, CONFIG.colors.miso);
+            }
+        }
+        
+        function resetWires() {
+             Object.values(els.wires).forEach(el => {
+                 el.style.stroke = CONFIG.colors.wireInactive;
+                 el.style.strokeWidth = 2;
+                 el.style.filter = 'none';
+             });
+        }
+
+        function spawnParticle(type, value) {
+            if (value === 0) return; 
+            const p = document.createElement('div');
+            p.className = 'absolute w-1.5 h-1.5 rounded-full bit-packet';
+            
+            // Y Percents: 40/180=22.2%, 70/180=38.9%, 100/180=55.56%, 130/180=72.22%
+            const startPct = 20; const endPct = 80;
+            const topPct = type === 'mosi' ? 55.56 : 72.22;
+            
+            p.style.top = `${topPct}%`; 
+            p.style.marginTop = '-3px'; 
+            p.style.backgroundColor = type === 'mosi' ? CONFIG.colors.mosi : CONFIG.colors.miso;
+            p.style.color = p.style.backgroundColor; 
+            els.particles.appendChild(p);
+
+            const baseDuration = 400; 
+            const duration = baseDuration / STATE.speedMultiplier; 
+            
+            function animateParticle(timestamp) {
+                if (STATE.isPaused) { requestAnimationFrame(animateParticle); return; }
+                const now = performance.now();
+                if (!p.lastTime) p.lastTime = now;
+                const dt = now - p.lastTime;
+                p.lastTime = now;
+                
+                if (!p.progress) p.progress = 0;
+                p.progress += dt / duration;
+
+                if (p.progress < 1) {
+                    let currentPct;
+                    if (type === 'mosi') currentPct = startPct + (endPct - startPct) * p.progress;
+                    else currentPct = endPct - (endPct - startPct) * p.progress;
+                    p.style.left = `${currentPct}%`;
+                    p.style.opacity = 1 - Math.pow(p.progress - 0.5, 4); 
+                    requestAnimationFrame(animateParticle);
+                } else p.remove();
+            }
+            requestAnimationFrame(animateParticle);
+        }
+
+        function drawScope() {
+            ctx.fillStyle = CONFIG.colors.bg;
+            ctx.fillRect(0, 0, els.canvas.width, els.canvas.height);
+            drawGrid();
+            drawSignalLine(STATE.history.map(h => h.cs), 0, CONFIG.colors.cs, "CS");
+            drawSignalLine(STATE.history.map(h => h.sck), 1, CONFIG.colors.sck, "SCK");
+            drawSignalLine(STATE.history.map(h => h.mosi), 2, CONFIG.colors.mosi, "MOSI");
+            drawSignalLine(STATE.history.map(h => h.miso), 3, CONFIG.colors.miso, "MISO");
+            STATE.markers.forEach(x => {
+                ctx.beginPath(); ctx.strokeStyle = CONFIG.colors.marker; ctx.lineWidth = 1;
+                ctx.setLineDash([4, 4]); ctx.moveTo(x, 0); ctx.lineTo(x, els.canvas.height);
+                ctx.stroke(); ctx.setLineDash([]);
+            });
+            if (STATE.isMouseOver) {
+                const x = STATE.mouseX; const y = STATE.mouseY;
+                ctx.beginPath(); ctx.strokeStyle = CONFIG.colors.cursor; ctx.lineWidth = 1;
+                ctx.moveTo(x, 0); ctx.lineTo(x, els.canvas.height);
+                ctx.moveTo(0, y); ctx.lineTo(els.canvas.width, y); ctx.stroke();
+                
+                const len = STATE.history.length;
+                const empty = Math.max(0, els.canvas.width - len);
+                let data = null;
+                if (x >= empty) data = STATE.history[Math.floor(x - empty)];
+
+                if (data) {
+                    els.tooltip.style.display = 'block';
+                    let left = x + 15, top = y + 15;
+                    if (left > els.canvas.width - 100) left = x - 105;
+                    if (top > els.canvas.height - 80) top = y - 80;
+                    els.tooltip.style.left = left + 'px'; els.tooltip.style.top = top + 'px';
+                    els.tooltip.innerHTML = 
+                        `<div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-white"></span> CS  : ${data.cs}</div>` +
+                        `<div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-yellow-400"></span> SCK : ${data.sck}</div>` +
+                        `<div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-400"></span> MOSI: ${data.mosi}</div>` +
+                        `<div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-orange-400"></span> MISO: ${data.miso}</div>`;
+                } else els.tooltip.style.display = 'none';
+            }
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = '#1f2937'; ctx.lineWidth = 1; ctx.beginPath();
+            for (let x = els.canvas.width; x >= 0; x -= 50) { ctx.moveTo(x, 0); ctx.lineTo(x, els.canvas.height); }
+            ctx.stroke();
+        }
+
+        function drawSignalLine(data, row, color, label) {
+            const h = CONFIG.layout.rowHeight, pad = CONFIG.layout.paddingTop;
+            const baseY = pad + (row * h * 1.1) + h; 
+            const highY = baseY - h + 4, lowY = baseY - 2;
+            ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.shadowColor = color; ctx.shadowBlur = 0; 
+            ctx.beginPath();
+            const len = data.length, width = els.canvas.width;
+            for (let i = 0; i < len; i++) {
+                const x = width - (len - i); if (x < -1) continue; 
+                const y = data[i] ? highY : lowY;
+                if (i === 0 || x === 0) ctx.moveTo(x, y);
+                else { ctx.lineTo(x, data[i-1] ? highY : lowY); ctx.lineTo(x, y); }
+            }
+            ctx.stroke();
+            ctx.fillStyle = color; ctx.font = "9px JetBrains Mono"; ctx.fillText(label, 4, highY + 8);
+        }
+        init();
+    </script>
+</body>
+</html>

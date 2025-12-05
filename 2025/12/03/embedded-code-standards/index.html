@@ -1,0 +1,993 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/fluid.png">
+  
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="John Doe">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="嵌入式架构和代码规范一、通用嵌入式5层架构   层级 名称 职责 示例    L0 HAL MCU片内外设初始化与底层操作 GPIO、RCC、UART、I2C、SPI、TIM、DMA、ADC   L1 BSP 板级外挂硬件设备驱动 LCD、按键、LED、传感器、存储器、电机驱动   L2 Middlewares 第三方中间件&#x2F;协议栈 FatFs、LVGL、FreeRTOS、MQTT、Mo">
+<meta property="og:type" content="article">
+<meta property="og:title" content="嵌入式架构和代码规范">
+<meta property="og:url" content="http://example.com/2025/12/03/embedded-code-standards/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="嵌入式架构和代码规范一、通用嵌入式5层架构   层级 名称 职责 示例    L0 HAL MCU片内外设初始化与底层操作 GPIO、RCC、UART、I2C、SPI、TIM、DMA、ADC   L1 BSP 板级外挂硬件设备驱动 LCD、按键、LED、传感器、存储器、电机驱动   L2 Middlewares 第三方中间件&#x2F;协议栈 FatFs、LVGL、FreeRTOS、MQTT、Mo">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2025-12-03T02:00:00.000Z">
+<meta property="article:modified_time" content="2025-12-03T08:07:13.772Z">
+<meta property="article:author" content="John Doe">
+<meta property="article:tag" content="C语言">
+<meta property="article:tag" content="代码规范">
+<meta property="article:tag" content="嵌入式">
+<meta property="article:tag" content="架构设计">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+  
+  <title>嵌入式架构和代码规范 - Hexo</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1749284_5i9bdhy70f8.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1736178_k526ubmyhba.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.8","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":{"measurement_id":null},"tencent":{"sid":null,"cid":null},"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false},"umami":{"src":null,"website_id":null,"domains":null,"start_time":"2024-01-01T00:00:00.000Z","token":null,"api_server":null}},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 8.1.1"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>Fluid</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/" target="_self">
+                <i class="iconfont icon-category-fill"></i>
+                <span>分类</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/" target="_self">
+                <i class="iconfont icon-tags-fill"></i>
+                <span>标签</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="嵌入式架构和代码规范"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2025-12-03 10:00" pubdate>
+          2025年12月3日 上午
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          3.5k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          30 分钟
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">嵌入式架构和代码规范</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <h1 id="嵌入式架构和代码规范"><a href="#嵌入式架构和代码规范" class="headerlink" title="嵌入式架构和代码规范"></a>嵌入式架构和代码规范</h1><h2 id="一、通用嵌入式5层架构"><a href="#一、通用嵌入式5层架构" class="headerlink" title="一、通用嵌入式5层架构"></a>一、通用嵌入式5层架构</h2><table>
+<thead>
+<tr>
+<th>层级</th>
+<th>名称</th>
+<th>职责</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>L0</strong></td>
+<td>HAL</td>
+<td>MCU片内外设初始化与底层操作</td>
+<td>GPIO、RCC、UART、I2C、SPI、TIM、DMA、ADC</td>
+</tr>
+<tr>
+<td><strong>L1</strong></td>
+<td>BSP</td>
+<td>板级外挂硬件设备驱动</td>
+<td>LCD、按键、LED、传感器、存储器、电机驱动</td>
+</tr>
+<tr>
+<td><strong>L2</strong></td>
+<td>Middlewares</td>
+<td>第三方中间件&#x2F;协议栈</td>
+<td>FatFs、LVGL、FreeRTOS、MQTT、Modbus</td>
+</tr>
+<tr>
+<td><strong>L3</strong></td>
+<td>Service&#x2F;Core</td>
+<td>核心服务层</td>
+<td>算法模块、协议解析、状态机、数据管理</td>
+</tr>
+<tr>
+<td><strong>L4</strong></td>
+<td>APP</td>
+<td>应用逻辑层</td>
+<td>UI交互、业务流程、任务调度、系统配置</td>
+</tr>
+</tbody></table>
+<h2 id="二、各层职责详细说明"><a href="#二、各层职责详细说明" class="headerlink" title="二、各层职责详细说明"></a>二、各层职责详细说明</h2><h3 id="L0-HAL层（Hardware-Abstraction-Layer）"><a href="#L0-HAL层（Hardware-Abstraction-Layer）" class="headerlink" title="L0 - HAL层（Hardware Abstraction Layer）"></a>L0 - HAL层（Hardware Abstraction Layer）</h3><ul>
+<li>MCU片内外设的初始化与配置</li>
+<li>寄存器级别的底层操作封装</li>
+<li>时钟、中断、DMA等系统资源管理</li>
+<li>仅依赖芯片厂商提供的库或直接操作寄存器</li>
+</ul>
+<h3 id="L1-BSP层（Board-Support-Package）"><a href="#L1-BSP层（Board-Support-Package）" class="headerlink" title="L1 - BSP层（Board Support Package）"></a>L1 - BSP层（Board Support Package）</h3><ul>
+<li>板级外挂硬件设备的驱动实现</li>
+<li>每个硬件设备封装为独立模块</li>
+<li>提供统一的设备操作接口</li>
+<li>仅依赖HAL层</li>
+</ul>
+<h3 id="L2-Middlewares层（中间件层）"><a href="#L2-Middlewares层（中间件层）" class="headerlink" title="L2 - Middlewares层（中间件层）"></a>L2 - Middlewares层（中间件层）</h3><ul>
+<li>存放第三方中间件和协议栈</li>
+<li>文件系统、图形库、通信协议等</li>
+<li>可依赖HAL层和BSP层</li>
+</ul>
+<h3 id="L3-Service-Core层（核心服务层）"><a href="#L3-Service-Core层（核心服务层）" class="headerlink" title="L3 - Service&#x2F;Core层（核心服务层）"></a>L3 - Service&#x2F;Core层（核心服务层）</h3><ul>
+<li>业务核心算法实现</li>
+<li>协议解析与数据处理</li>
+<li>状态机管理</li>
+<li>可依赖Middlewares、BSP、HAL层</li>
+</ul>
+<h3 id="L4-APP层（应用层）"><a href="#L4-APP层（应用层）" class="headerlink" title="L4 - APP层（应用层）"></a>L4 - APP层（应用层）</h3><ul>
+<li>用户界面与交互逻辑</li>
+<li>业务流程控制</li>
+<li>系统配置管理</li>
+<li>仅通过Service层接口访问底层功能</li>
+</ul>
+<h2 id="三、层间调用规则"><a href="#三、层间调用规则" class="headerlink" title="三、层间调用规则"></a>三、层间调用规则</h2><figure class="highlight nginx"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs nginx"><span class="hljs-attribute">APP</span> → Service/Core → Middlewares → BSP → HAL<br></code></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th>层级</th>
+<th>可调用</th>
+<th>禁止调用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>HAL</td>
+<td>芯片寄存器&#x2F;厂商库</td>
+<td>上层任何模块</td>
+</tr>
+<tr>
+<td>BSP</td>
+<td>HAL</td>
+<td>Middlewares、Service、APP</td>
+</tr>
+<tr>
+<td>Middlewares</td>
+<td>HAL、BSP</td>
+<td>Service、APP</td>
+</tr>
+<tr>
+<td>Service</td>
+<td>Middlewares、BSP、HAL</td>
+<td>APP</td>
+</tr>
+<tr>
+<td>APP</td>
+<td>Service、Middlewares</td>
+<td>尽量不直接调用BSP&#x2F;HAL</td>
+</tr>
+</tbody></table>
+<h3 id="核心原则"><a href="#核心原则" class="headerlink" title="核心原则"></a>核心原则</h3><ol>
+<li><strong>单向依赖</strong>：只允许上层调用下层，禁止下层调用上层</li>
+<li><strong>禁止跨层</strong>：尽量避免跨层调用（特殊情况如中断回调除外）</li>
+<li><strong>接口隔离</strong>：每层通过统一接口对外暴露功能</li>
+<li><strong>可替换性</strong>：更换硬件只需修改HAL&#x2F;BSP层，上层代码无需改动</li>
+</ol>
+<h2 id="四、BSP层接口规范"><a href="#四、BSP层接口规范" class="headerlink" title="四、BSP层接口规范"></a>四、BSP层接口规范</h2><p>每个设备模块应提供统一风格的接口：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">// 初始化/反初始化</span><br><span class="hljs-type">void</span> <span class="hljs-title function_">bsp_xxx_init</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span>;<br><span class="hljs-type">void</span> <span class="hljs-title function_">bsp_xxx_deinit</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span>;<br><br><span class="hljs-comment">// 基本操作</span><br><span class="hljs-type">int</span> <span class="hljs-title function_">bsp_xxx_read</span><span class="hljs-params">(<span class="hljs-type">uint8_t</span> *data, <span class="hljs-type">uint16_t</span> len)</span>;<br><span class="hljs-type">int</span> <span class="hljs-title function_">bsp_xxx_write</span><span class="hljs-params">(<span class="hljs-type">const</span> <span class="hljs-type">uint8_t</span> *data, <span class="hljs-type">uint16_t</span> len)</span>;<br><br><span class="hljs-comment">// 状态查询</span><br><span class="hljs-type">int</span> <span class="hljs-title function_">bsp_xxx_get_status</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span>;<br></code></pre></td></tr></table></figure>
+
+<h2 id="五、头文件包含规则"><a href="#五、头文件包含规则" class="headerlink" title="五、头文件包含规则"></a>五、头文件包含规则</h2><table>
+<thead>
+<tr>
+<th>层级</th>
+<th>允许包含</th>
+<th>禁止包含</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>HAL</td>
+<td>芯片厂商头文件、标准库</td>
+<td>BSP、Middlewares、Service、APP</td>
+</tr>
+<tr>
+<td>BSP</td>
+<td>HAL层头文件</td>
+<td>Middlewares、Service、APP</td>
+</tr>
+<tr>
+<td>Middlewares</td>
+<td>HAL、BSP头文件</td>
+<td>Service、APP</td>
+</tr>
+<tr>
+<td>Service</td>
+<td>Middlewares、BSP、HAL头文件</td>
+<td>APP</td>
+</tr>
+<tr>
+<td>APP</td>
+<td>Service、Middlewares头文件</td>
+<td>尽量不直接包含BSP&#x2F;HAL</td>
+</tr>
+</tbody></table>
+<h2 id="六、命名规范"><a href="#六、命名规范" class="headerlink" title="六、命名规范"></a>六、命名规范</h2><h3 id="文件命名"><a href="#文件命名" class="headerlink" title="文件命名"></a>文件命名</h3><ul>
+<li>HAL层：<code>hal_xxx.c/h</code>（如 <code>hal_gpio.c</code>）</li>
+<li>BSP层：<code>bsp_xxx.c/h</code>（如 <code>bsp_lcd.c</code>）</li>
+<li>Service层：<code>xxx_service.c/h</code> 或 <code>xxx_core.c/h</code></li>
+<li>APP层：<code>app_xxx.c/h</code> 或 <code>screen_xxx.c/h</code></li>
+</ul>
+<h3 id="函数命名"><a href="#函数命名" class="headerlink" title="函数命名"></a>函数命名</h3><ul>
+<li>使用小写字母和下划线分隔</li>
+<li>前缀表明所属层级：<code>hal_</code>、<code>bsp_</code>、<code>svc_</code>、<code>app_</code></li>
+<li>示例：<code>bsp_lcd_draw_pixel()</code>、<code>svc_data_parse()</code></li>
+</ul>
+<h3 id="宏定义命名"><a href="#宏定义命名" class="headerlink" title="宏定义命名"></a>宏定义命名</h3><ul>
+<li>全部大写，下划线分隔</li>
+<li>前缀表明所属模块</li>
+<li>示例：<code>BSP_LCD_WIDTH</code>、<code>HAL_UART_BAUDRATE</code></li>
+</ul>
+<h2 id="七、类型定义规范"><a href="#七、类型定义规范" class="headerlink" title="七、类型定义规范"></a>七、类型定义规范</h2><h3 id="typedef后缀规范"><a href="#typedef后缀规范" class="headerlink" title="typedef后缀规范"></a>typedef后缀规范</h3><table>
+<thead>
+<tr>
+<th>类型</th>
+<th>后缀</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>结构体</td>
+<td><code>_t</code></td>
+<td><code>button_event_t</code></td>
+</tr>
+<tr>
+<td>联合体</td>
+<td><code>_union</code></td>
+<td><code>data_convert_union</code></td>
+</tr>
+<tr>
+<td>枚举</td>
+<td><code>_enum</code></td>
+<td><code>button_state_enum</code></td>
+</tr>
+</tbody></table>
+<h3 id="函数指针命名"><a href="#函数指针命名" class="headerlink" title="函数指针命名"></a>函数指针命名</h3><ul>
+<li>前缀：<code>pf_</code></li>
+<li>示例：<code>typedef void (*pf_callback)(uint8_t data);</code></li>
+</ul>
+<h3 id="枚举成员命名"><a href="#枚举成员命名" class="headerlink" title="枚举成员命名"></a>枚举成员命名</h3><ul>
+<li>全部大写，下划线分隔</li>
+<li>示例：</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">typedef</span> <span class="hljs-class"><span class="hljs-keyword">enum</span> &#123;</span><br>    BUTTON_IDLE,<br>    BUTTON_PRESSED,<br>    BUTTON_RELEASED<br>&#125; button_state_enum;<br></code></pre></td></tr></table></figure>
+
+<h2 id="八、函数命名规范"><a href="#八、函数命名规范" class="headerlink" title="八、函数命名规范"></a>八、函数命名规范</h2><h3 id="静态局部函数"><a href="#静态局部函数" class="headerlink" title="静态局部函数"></a>静态局部函数</h3><ul>
+<li>以下划线 <code>_</code> 开头</li>
+<li>使用小写和下划线</li>
+<li>示例：<code>_usart_tx()</code>、<code>_parse_data()</code></li>
+</ul>
+<h3 id="外部接口函数"><a href="#外部接口函数" class="headerlink" title="外部接口函数"></a>外部接口函数</h3><ul>
+<li>采用驼峰命名法（PascalCase）</li>
+<li>示例：<code>ConfigUsart()</code>、<code>GetSystemState()</code></li>
+</ul>
+<h2 id="九、变量命名规范"><a href="#九、变量命名规范" class="headerlink" title="九、变量命名规范"></a>九、变量命名规范</h2><h3 id="变量前缀规范"><a href="#变量前缀规范" class="headerlink" title="变量前缀规范"></a>变量前缀规范</h3><table>
+<thead>
+<tr>
+<th>类型</th>
+<th>前缀</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>指针变量</td>
+<td><code>p_</code></td>
+<td><code>p_buffer</code></td>
+</tr>
+<tr>
+<td>全局变量</td>
+<td><code>g_</code></td>
+<td><code>g_system_state</code></td>
+</tr>
+<tr>
+<td>静态全局变量</td>
+<td><code>s_</code></td>
+<td><code>s_init_flag</code></td>
+</tr>
+<tr>
+<td>布尔变量</td>
+<td><code>is_</code>&#x2F;<code>has_</code>&#x2F;<code>can_</code></td>
+<td><code>is_running</code>、<code>has_data</code></td>
+</tr>
+<tr>
+<td>数组&#x2F;缓冲区</td>
+<td><code>_buf</code> 或 <code>_arr</code> 后缀</td>
+<td><code>tx_buf</code>、<code>data_arr</code></td>
+</tr>
+</tbody></table>
+<h3 id="变量命名规则"><a href="#变量命名规则" class="headerlink" title="变量命名规则"></a>变量命名规则</h3><ul>
+<li>采用下划线分隔法</li>
+<li>以功能为开头</li>
+<li>示例：</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">typedef</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> &#123;</span><br>    <span class="hljs-type">bool</span> spk_action;<br>    <span class="hljs-type">uint8_t</span> spk_volume;<br>&#125; <span class="hljs-type">spk_event_t</span>;<br></code></pre></td></tr></table></figure>
+
+<h3 id="变量大小优化（MCU资源有限）"><a href="#变量大小优化（MCU资源有限）" class="headerlink" title="变量大小优化（MCU资源有限）"></a>变量大小优化（MCU资源有限）</h3><table>
+<thead>
+<tr>
+<th>数值范围</th>
+<th>推荐类型</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0 ~ 255</td>
+<td><code>uint8_t</code></td>
+</tr>
+<tr>
+<td>0 ~ 65535</td>
+<td><code>uint16_t</code></td>
+</tr>
+<tr>
+<td>超过65535</td>
+<td><code>uint32_t</code></td>
+</tr>
+<tr>
+<td>带符号小范围</td>
+<td><code>int8_t</code>、<code>int16_t</code></td>
+</tr>
+</tbody></table>
+<h2 id="十、回调与中断命名"><a href="#十、回调与中断命名" class="headerlink" title="十、回调与中断命名"></a>十、回调与中断命名</h2><ul>
+<li>回调函数：<code>xxx_callback()</code> 或 <code>xxx_cb()</code></li>
+<li>中断处理：<code>XXX_IRQHandler()</code>（与厂商库保持一致）</li>
+</ul>
+<h2 id="十一、头文件规范"><a href="#十一、头文件规范" class="headerlink" title="十一、头文件规范"></a>十一、头文件规范</h2><h3 id="头文件保护宏"><a href="#头文件保护宏" class="headerlink" title="头文件保护宏"></a>头文件保护宏</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">ifndef</span> __MODULE_NAME_H__</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> __MODULE_NAME_H__</span><br><span class="hljs-comment">// ...</span><br><span class="hljs-meta">#<span class="hljs-keyword">endif</span> <span class="hljs-comment">/* __MODULE_NAME_H__ */</span></span><br></code></pre></td></tr></table></figure>
+
+<h3 id="include顺序"><a href="#include顺序" class="headerlink" title="include顺序"></a>include顺序</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">// 1. 标准库</span><br><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&lt;stdint.h&gt;</span></span><br><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&lt;stdbool.h&gt;</span></span><br><span class="hljs-comment">// 2. 芯片/HAL库</span><br><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&quot;stm32f1xx.h&quot;</span></span><br><span class="hljs-comment">// 3. 第三方库</span><br><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&quot;fatfs.h&quot;</span></span><br><span class="hljs-comment">// 4. 自定义头文件</span><br><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&quot;bsp_lcd.h&quot;</span></span><br></code></pre></td></tr></table></figure>
+
+<h3 id="静态局部函数声明位置"><a href="#静态局部函数声明位置" class="headerlink" title="静态局部函数声明位置"></a>静态局部函数声明位置</h3><ul>
+<li>静态局部函数声明放置在 <code>.h</code> 文件的<strong>最后面</strong></li>
+</ul>
+<h3 id="头文件注释规范"><a href="#头文件注释规范" class="headerlink" title="头文件注释规范"></a>头文件注释规范</h3><ul>
+<li><strong>禁止</strong>在 <code>.h</code> 文件内使用 doxygen 注释</li>
+<li>采用 <code>/* */</code> 或 <code>//</code> 简短介绍</li>
+<li>示例：</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">/* 初始化LCD模块 */</span><br><span class="hljs-type">void</span> <span class="hljs-title function_">LcdInit</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span>;<br><br><span class="hljs-comment">// 设置LCD背光亮度</span><br><span class="hljs-type">void</span> <span class="hljs-title function_">LcdSetBacklight</span><span class="hljs-params">(<span class="hljs-type">uint8_t</span> level)</span>;<br></code></pre></td></tr></table></figure>
+
+<h2 id="十二、模块状态枚举"><a href="#十二、模块状态枚举" class="headerlink" title="十二、模块状态枚举"></a>十二、模块状态枚举</h2><p>每个模块创建前需要增加一个 <code>enum</code> 状态来代表该模块的状态：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">typedef</span> <span class="hljs-class"><span class="hljs-keyword">enum</span> &#123;</span><br>    MODULE_STATE_IDLE,<br>    MODULE_STATE_INIT,<br>    MODULE_STATE_RUNNING,<br>    MODULE_STATE_ERROR<br>&#125; module_state_enum;<br></code></pre></td></tr></table></figure>
+
+<h2 id="十三、返回值与错误码规范"><a href="#十三、返回值与错误码规范" class="headerlink" title="十三、返回值与错误码规范"></a>十三、返回值与错误码规范</h2><h3 id="返回值约定"><a href="#返回值约定" class="headerlink" title="返回值约定"></a>返回值约定</h3><table>
+<thead>
+<tr>
+<th>返回值</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>0</code></td>
+<td>成功</td>
+</tr>
+<tr>
+<td><code>-1</code> 或 负数</td>
+<td>失败&#x2F;错误码</td>
+</tr>
+<tr>
+<td><code>&gt; 0</code></td>
+<td>数据长度或特定状态</td>
+</tr>
+</tbody></table>
+<h3 id="模块错误码定义"><a href="#模块错误码定义" class="headerlink" title="模块错误码定义"></a>模块错误码定义</h3><p>每个模块定义独立的错误码枚举：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">typedef</span> <span class="hljs-class"><span class="hljs-keyword">enum</span> &#123;</span><br>    MODULE_OK = <span class="hljs-number">0</span>,<br>    MODULE_ERR_PARAM,<br>    MODULE_ERR_TIMEOUT,<br>    MODULE_ERR_BUSY<br>&#125; module_err_enum;<br></code></pre></td></tr></table></figure>
+
+<h2 id="十四、魔数处理"><a href="#十四、魔数处理" class="headerlink" title="十四、魔数处理"></a>十四、魔数处理</h2><ul>
+<li><strong>禁止</strong>直接使用魔数，必须定义为宏或枚举</li>
+<li>示例：</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">// 错误示范</span><br><span class="hljs-keyword">if</span> (count &gt; <span class="hljs-number">256</span>) &#123; ... &#125;<br><br><span class="hljs-comment">// 正确示范</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> BUFFER_MAX_SIZE  256</span><br><span class="hljs-keyword">if</span> (count &gt; BUFFER_MAX_SIZE) &#123; ... &#125;<br></code></pre></td></tr></table></figure>
+
+<h2 id="十五、代码生成规则（AI辅助开发）"><a href="#十五、代码生成规则（AI辅助开发）" class="headerlink" title="十五、代码生成规则（AI辅助开发）"></a>十五、代码生成规则（AI辅助开发）</h2><h3 id="结构体生成规则"><a href="#结构体生成规则" class="headerlink" title="结构体生成规则"></a>结构体生成规则</h3><ul>
+<li>在生成模块的结构体前，<strong>必须</strong>与用户确认需要的内容后才能开始生成</li>
+</ul>
+<h3 id="模块代码生成流程"><a href="#模块代码生成流程" class="headerlink" title="模块代码生成流程"></a>模块代码生成流程</h3><ol>
+<li><strong>禁止</strong>一次性生成 <code>.h</code> 和 <code>.c</code> 的完整实现</li>
+<li>生成 <code>.h</code> 文件时，在 <code>.c</code> 文件内<strong>仅生成接口函数名</strong>（空函数体）</li>
+<li><strong>等待用户确认</strong>后，才能生成函数具体实现</li>
+</ol>
+<p>示例流程：</p>
+<figure class="highlight monkey"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs monkey"><span class="hljs-keyword">Step</span> <span class="hljs-number">1</span>: 生成 <span class="hljs-keyword">module</span>.h（完整声明）<br><span class="hljs-keyword">Step</span> <span class="hljs-number">2</span>: 生成 <span class="hljs-keyword">module</span>.c（仅函数框架，无实现）<br><span class="hljs-keyword">Step</span> <span class="hljs-number">3</span>: 用户确认<br><span class="hljs-keyword">Step</span> <span class="hljs-number">4</span>: 逐个生成函数实现<br></code></pre></td></tr></table></figure>
+
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%BC%80%E5%8F%91/" class="category-chain-item">嵌入式开发</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/%E5%B5%8C%E5%85%A5%E5%BC%8F/" class="print-no-link">#嵌入式</a>
+      
+        <a href="/tags/%E4%BB%A3%E7%A0%81%E8%A7%84%E8%8C%83/" class="print-no-link">#代码规范</a>
+      
+        <a href="/tags/%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1/" class="print-no-link">#架构设计</a>
+      
+        <a href="/tags/C%E8%AF%AD%E8%A8%80/" class="print-no-link">#C语言</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>嵌入式架构和代码规范</div>
+      <div>http://example.com/2025/12/03/embedded-code-standards/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>John Doe</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2025年12月3日</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-cc-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2025/12/04/stm32-spi-introduction/" title="STM32 SPI通信详解与动画演示">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">STM32 SPI通信详解与动画演示</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2025/12/01/hello-world/" title="Hello World">
+                        <span class="hidden-mobile">Hello World</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.4/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.20.1/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/5.0.0/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>

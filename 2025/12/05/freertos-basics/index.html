@@ -1,0 +1,817 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/fluid.png">
+  
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="John Doe">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="FreeRTOS 基础入门本文整理了 FreeRTOS 学习过程中的基础知识，包括堆栈概念、FreeRTOS 的目录结构以及官方推荐的编程规范。 一、RTOS 学习基础：堆与栈1. 堆 (Heap)堆是一个由用户控制的空闲内存区域，需要手动申请和释放空间。我们通常使用 malloc 分配的内存（如 char *p &#x3D; malloc(10);）就位于堆中。 简单的堆分配演示： 12345678910">
+<meta property="og:type" content="article">
+<meta property="og:title" content="FreeRTOS 基础入门：堆栈、目录结构与编程规范">
+<meta property="og:url" content="http://example.com/2025/12/05/freertos-basics/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="FreeRTOS 基础入门本文整理了 FreeRTOS 学习过程中的基础知识，包括堆栈概念、FreeRTOS 的目录结构以及官方推荐的编程规范。 一、RTOS 学习基础：堆与栈1. 堆 (Heap)堆是一个由用户控制的空闲内存区域，需要手动申请和释放空间。我们通常使用 malloc 分配的内存（如 char *p &#x3D; malloc(10);）就位于堆中。 简单的堆分配演示： 12345678910">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2025-12-05T02:00:00.000Z">
+<meta property="article:modified_time" content="2025-12-05T05:11:17.417Z">
+<meta property="article:author" content="John Doe">
+<meta property="article:tag" content="FreeRTOS">
+<meta property="article:tag" content="RTOS">
+<meta property="article:tag" content="STM32">
+<meta property="article:tag" content="嵌入式">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+  
+  <title>FreeRTOS 基础入门：堆栈、目录结构与编程规范 - Hexo</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1749284_5i9bdhy70f8.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1736178_k526ubmyhba.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.8","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":{"measurement_id":null},"tencent":{"sid":null,"cid":null},"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false},"umami":{"src":null,"website_id":null,"domains":null,"start_time":"2024-01-01T00:00:00.000Z","token":null,"api_server":null}},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 8.1.1"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>Fluid</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/" target="_self">
+                <i class="iconfont icon-category-fill"></i>
+                <span>分类</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/" target="_self">
+                <i class="iconfont icon-tags-fill"></i>
+                <span>标签</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="FreeRTOS 基础入门：堆栈、目录结构与编程规范"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2025-12-05 10:00" pubdate>
+          2025年12月5日 上午
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          2.3k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          19 分钟
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">FreeRTOS 基础入门：堆栈、目录结构与编程规范</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <h1 id="FreeRTOS-基础入门"><a href="#FreeRTOS-基础入门" class="headerlink" title="FreeRTOS 基础入门"></a>FreeRTOS 基础入门</h1><p>本文整理了 FreeRTOS 学习过程中的基础知识，包括堆栈概念、FreeRTOS 的目录结构以及官方推荐的编程规范。</p>
+<h2 id="一、RTOS-学习基础：堆与栈"><a href="#一、RTOS-学习基础：堆与栈" class="headerlink" title="一、RTOS 学习基础：堆与栈"></a>一、RTOS 学习基础：堆与栈</h2><h3 id="1-堆-Heap"><a href="#1-堆-Heap" class="headerlink" title="1. 堆 (Heap)"></a>1. 堆 (Heap)</h3><p>堆是一个由用户控制的空闲内存区域，需要手动申请和释放空间。我们通常使用 <code>malloc</code> 分配的内存（如 <code>char *p = malloc(10);</code>）就位于堆中。</p>
+<p><strong>简单的堆分配演示：</strong></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">char</span> heap_buf[<span class="hljs-number">1024</span>]; <span class="hljs-comment">// 模拟堆内存池</span><br><span class="hljs-type">int</span> pos = <span class="hljs-number">0</span>;         <span class="hljs-comment">// 堆指针</span><br><br><span class="hljs-type">void</span> *<span class="hljs-title function_">my_malloc</span><span class="hljs-params">(<span class="hljs-type">int</span> size)</span> &#123;<br>    <span class="hljs-type">int</span> old_pos = pos;         <span class="hljs-comment">// 保存当前分配起始位置</span><br>    pos = pos + size;          <span class="hljs-comment">// 更新堆指针</span><br>    <span class="hljs-keyword">return</span> &amp;heap_buf[old_pos]; <span class="hljs-comment">// 返回申请到的内存首地址</span><br>&#125;<br><br><span class="hljs-type">int</span> <span class="hljs-title function_">main</span><span class="hljs-params">()</span> &#123;<br>    <span class="hljs-type">char</span> ch = <span class="hljs-number">65</span>; <span class="hljs-comment">// &#x27;A&#x27;</span><br>    <br>    <span class="hljs-comment">// 模拟分配堆内存</span><br>    <span class="hljs-type">char</span> *buf = (<span class="hljs-type">char</span> *)my_malloc(<span class="hljs-number">100</span>);  <span class="hljs-comment">// 分配100字节 0x000~0x063</span><br>    <span class="hljs-type">char</span> *buf2 = (<span class="hljs-type">char</span> *)my_malloc(<span class="hljs-number">100</span>); <span class="hljs-comment">// 分配100字节 0x064~0x0C7</span><br>    <br>    <span class="hljs-type">uint8_t</span> uch = <span class="hljs-number">200</span>;<br>    <br>    <span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">100</span>; i++) &#123;<br>        buf[i] = ch + i;   <span class="hljs-comment">// 往堆内存写入数据</span><br>    &#125;<br>    <br>    <span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">100</span>; i++) &#123;<br>        buf2[i] = uch + i; <span class="hljs-comment">// 往堆内存写入数据</span><br>    &#125;<br>    <br>    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<h3 id="2-栈-Stack"><a href="#2-栈-Stack" class="headerlink" title="2. 栈 (Stack)"></a>2. 栈 (Stack)</h3><p>栈是函数运行时使用的内存区域，由编译器自动分配和释放。栈主要用于存放：</p>
+<ul>
+<li>函数的参数</li>
+<li>局部变量</li>
+<li>函数返回地址</li>
+</ul>
+<p><strong>函数调用与栈的过程：</strong></p>
+<p>当主函数调用子函数时，会将下一条指令的地址（返回地址）压入栈中，然后跳转到子函数执行。子函数执行完毕后，从栈中弹出返回地址，跳转回主函数继续执行。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">void</span> <span class="hljs-title function_">AFUN</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span> &#123;<br>    <span class="hljs-type">int</span> a = <span class="hljs-number">10</span>;<br>    <span class="hljs-type">int</span> b = <span class="hljs-number">20</span>;<br>    <br>    <span class="hljs-comment">// 假设这条指令的地址是 0x1000</span><br>    BFUN();  <span class="hljs-comment">// ← 调用 BFUN</span><br>    <br>    <span class="hljs-comment">// 假设这条指令的地址是 0x1004 ← 这就是返回地址！</span><br>    <span class="hljs-type">int</span> c = a + b;  <span class="hljs-comment">// BFUN 返回后，继续执行这里</span><br>    <br>    <span class="hljs-comment">// 地址 0x1008</span><br>    <span class="hljs-keyword">return</span>;<br>&#125;<br><br><span class="hljs-type">void</span> <span class="hljs-title function_">BFUN</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span> &#123;<br>    <span class="hljs-type">int</span> x = <span class="hljs-number">5</span>;<br>    <span class="hljs-comment">// ... 执行一些操作</span><br>    <span class="hljs-keyword">return</span>;  <span class="hljs-comment">// 返回到 0x1004（AFUN 中调用 BFUN 的下一条指令）</span><br>&#125;<br></code></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="二、FreeRTOS-目录结构-基于-STM32F1"><a href="#二、FreeRTOS-目录结构-基于-STM32F1" class="headerlink" title="二、FreeRTOS 目录结构 (基于 STM32F1)"></a>二、FreeRTOS 目录结构 (基于 STM32F1)</h2><p>了解 FreeRTOS 的源码目录结构有助于快速上手移植和开发。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><code class="hljs text">FreeRTOS/<br>│<br>├── Demo/                    # 示例工程<br>│   ├── Common/              # 通用演示代码<br>│   └── CORTEX_STM32F103_Keil/ # 特定平台的演示工程<br>│<br>├── License/                 # 许可证<br>│   └── license.txt<br>│<br>├── Source/                  # 内核源码（核心部分）<br>│   ├── include/             # 头文件<br>│   ├── portable/            # 移植层文件（与硬件相关）<br>│   │   ├── [Compiler]/[Arch]/ # 对应编译器和架构的接口文件<br>│   │   └── MemMang/         # 内存管理实现 (heap_1.c ~ heap_5.c)<br>│   ├── croutine.c           # 协程（通常不常用）<br>│   ├── event_groups.c       # 事件组<br>│   ├── list.c               # 链表实现<br>│   ├── queue.c              # 队列实现<br>│   ├── stream_buffer.c      # 流缓冲区<br>│   ├── tasks.c              # 任务管理<br>│   └── timers.c             # 软件定时器<br>│<br>├── README.md<br>└── ...<br></code></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="三、FreeRTOS-数据类型和编程规范"><a href="#三、FreeRTOS-数据类型和编程规范" class="headerlink" title="三、FreeRTOS 数据类型和编程规范"></a>三、FreeRTOS 数据类型和编程规范</h2><p>FreeRTOS 有一套独特的命名规范，遵循这些规范可以让代码风格与内核保持一致。</p>
+<h3 id="1-变量命名前缀"><a href="#1-变量命名前缀" class="headerlink" title="1. 变量命名前缀"></a>1. 变量命名前缀</h3><p>变量名通常包含一个小写字母前缀，表示变量的类型。</p>
+<table>
+<thead>
+<tr>
+<th align="left">变量名前缀</th>
+<th align="left">含义</th>
+<th align="left">C 类型</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><code>c</code></td>
+<td align="left">Char</td>
+<td align="left"><code>char</code></td>
+</tr>
+<tr>
+<td align="left"><code>s</code></td>
+<td align="left">Short</td>
+<td align="left"><code>int16_t</code>, <code>short</code></td>
+</tr>
+<tr>
+<td align="left"><code>l</code></td>
+<td align="left">Long</td>
+<td align="left"><code>int32_t</code>, <code>long</code></td>
+</tr>
+<tr>
+<td align="left"><code>x</code></td>
+<td align="left">BaseType</td>
+<td align="left"><code>BaseType_t</code> 及非标准类型 (结构体, Handle 等)</td>
+</tr>
+<tr>
+<td align="left"><code>u</code></td>
+<td align="left">Unsigned</td>
+<td align="left"><code>unsigned</code></td>
+</tr>
+<tr>
+<td align="left"><code>p</code></td>
+<td align="left">Pointer</td>
+<td align="left">指针</td>
+</tr>
+<tr>
+<td align="left"><code>uc</code></td>
+<td align="left">Unsigned Char</td>
+<td align="left"><code>uint8_t</code>, <code>unsigned char</code></td>
+</tr>
+<tr>
+<td align="left"><code>pc</code></td>
+<td align="left">Pointer to Char</td>
+<td align="left"><code>char *</code></td>
+</tr>
+</tbody></table>
+<h3 id="2-函数命名前缀"><a href="#2-函数命名前缀" class="headerlink" title="2. 函数命名前缀"></a>2. 函数命名前缀</h3><p>函数名也包含前缀，表示返回值类型和作用域。</p>
+<table>
+<thead>
+<tr>
+<th align="left">函数名前缀</th>
+<th align="left">含义</th>
+<th align="left">示例</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><code>prv</code></td>
+<td align="left">Private (私有)</td>
+<td align="left"><code>prvSetupHardware</code> (通常是 static 函数)</td>
+</tr>
+<tr>
+<td align="left"><code>v</code></td>
+<td align="left">Void (无返回值)</td>
+<td align="left"><code>vTaskStartScheduler</code></td>
+</tr>
+<tr>
+<td align="left"><code>x</code></td>
+<td align="left">BaseType (非 void)</td>
+<td align="left"><code>xTaskCreate</code> (返回 BaseType_t 或 Handle)</td>
+</tr>
+</tbody></table>
+<h3 id="3-宏命名规范"><a href="#3-宏命名规范" class="headerlink" title="3. 宏命名规范"></a>3. 宏命名规范</h3><p>宏通常大写，前缀小写，表示宏定义所在的文件。</p>
+<table>
+<thead>
+<tr>
+<th align="left">宏的前缀</th>
+<th align="left">含义 (定义文件)</th>
+<th align="left">示例</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><code>port</code></td>
+<td align="left"><code>portable.h</code> 或 <code>portmacro.h</code></td>
+<td align="left"><code>portMAX_DELAY</code></td>
+</tr>
+<tr>
+<td align="left"><code>task</code></td>
+<td align="left"><code>task.h</code></td>
+<td align="left"><code>taskENTER_CRITICAL()</code></td>
+</tr>
+<tr>
+<td align="left"><code>pd</code></td>
+<td align="left"><code>projdefs.h</code></td>
+<td align="left"><code>pdTRUE</code></td>
+</tr>
+<tr>
+<td align="left"><code>config</code></td>
+<td align="left"><code>FreeRTOSConfig.h</code></td>
+<td align="left"><code>configUSE_PREEMPTION</code></td>
+</tr>
+<tr>
+<td align="left"><code>err</code></td>
+<td align="left"><code>projdefs.h</code></td>
+<td align="left"><code>errQUEUE_FULL</code></td>
+</tr>
+</tbody></table>
+<h3 id="4-通用宏定义"><a href="#4-通用宏定义" class="headerlink" title="4. 通用宏定义"></a>4. 通用宏定义</h3><p>FreeRTOS 中常用的逻辑值宏定义：</p>
+<table>
+<thead>
+<tr>
+<th align="left">宏</th>
+<th align="left">值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><code>pdTRUE</code></td>
+<td align="left"><code>1</code></td>
+</tr>
+<tr>
+<td align="left"><code>pdFALSE</code></td>
+<td align="left"><code>0</code></td>
+</tr>
+<tr>
+<td align="left"><code>pdPASS</code></td>
+<td align="left"><code>1</code></td>
+</tr>
+<tr>
+<td align="left"><code>pdFAIL</code></td>
+<td align="left"><code>0</code></td>
+</tr>
+</tbody></table>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%BC%80%E5%8F%91/" class="category-chain-item">嵌入式开发</a>
+  
+  
+    <span>></span>
+    
+  <a href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%BC%80%E5%8F%91/FreeRTOS/" class="category-chain-item">FreeRTOS</a>
+  
+  
+
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/%E5%B5%8C%E5%85%A5%E5%BC%8F/" class="print-no-link">#嵌入式</a>
+      
+        <a href="/tags/FreeRTOS/" class="print-no-link">#FreeRTOS</a>
+      
+        <a href="/tags/RTOS/" class="print-no-link">#RTOS</a>
+      
+        <a href="/tags/STM32/" class="print-no-link">#STM32</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>FreeRTOS 基础入门：堆栈、目录结构与编程规范</div>
+      <div>http://example.com/2025/12/05/freertos-basics/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>John Doe</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2025年12月5日</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-cc-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2025/12/04/stm32-spi-introduction/" title="STM32 SPI通信详解与动画演示">
+                        <span class="hidden-mobile">STM32 SPI通信详解与动画演示</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.4/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.20.1/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/5.0.0/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>

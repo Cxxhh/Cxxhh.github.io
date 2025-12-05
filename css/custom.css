@@ -1,0 +1,6 @@
+/* 减小文章内容的左右内边距，原本是 10% */
+.post-content {
+  padding-left: 2rem !important;
+  padding-right: 2rem !important;
+}
+

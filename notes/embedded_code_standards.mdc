@@ -1,0 +1,286 @@
+---
+description: 嵌入式架构和代码规范
+globs: 
+alwaysApply: false
+---
+
+# 嵌入式架构和代码规范
+
+## 一、通用嵌入式5层架构
+
+| 层级 | 名称 | 职责 | 示例 |
+|------|------|------|------|
+| **L0** | HAL | MCU片内外设初始化与底层操作 | GPIO、RCC、UART、I2C、SPI、TIM、DMA、ADC |
+| **L1** | BSP | 板级外挂硬件设备驱动 | LCD、按键、LED、传感器、存储器、电机驱动 |
+| **L2** | Middlewares | 第三方中间件/协议栈 | FatFs、LVGL、FreeRTOS、MQTT、Modbus |
+| **L3** | Service/Core | 核心服务层 | 算法模块、协议解析、状态机、数据管理 |
+| **L4** | APP | 应用逻辑层 | UI交互、业务流程、任务调度、系统配置 |
+
+## 二、各层职责详细说明
+
+### L0 - HAL层（Hardware Abstraction Layer）
+- MCU片内外设的初始化与配置
+- 寄存器级别的底层操作封装
+- 时钟、中断、DMA等系统资源管理
+- 仅依赖芯片厂商提供的库或直接操作寄存器
+
+### L1 - BSP层（Board Support Package）
+- 板级外挂硬件设备的驱动实现
+- 每个硬件设备封装为独立模块
+- 提供统一的设备操作接口
+- 仅依赖HAL层
+
+### L2 - Middlewares层（中间件层）
+- 存放第三方中间件和协议栈
+- 文件系统、图形库、通信协议等
+- 可依赖HAL层和BSP层
+
+### L3 - Service/Core层（核心服务层）
+- 业务核心算法实现
+- 协议解析与数据处理
+- 状态机管理
+- 可依赖Middlewares、BSP、HAL层
+
+### L4 - APP层（应用层）
+- 用户界面与交互逻辑
+- 业务流程控制
+- 系统配置管理
+- 仅通过Service层接口访问底层功能
+
+## 三、层间调用规则
+
+```
+APP → Service/Core → Middlewares → BSP → HAL
+```
+
+| 层级 | 可调用 | 禁止调用 |
+|------|--------|----------|
+| HAL | 芯片寄存器/厂商库 | 上层任何模块 |
+| BSP | HAL | Middlewares、Service、APP |
+| Middlewares | HAL、BSP | Service、APP |
+| Service | Middlewares、BSP、HAL | APP |
+| APP | Service、Middlewares | 尽量不直接调用BSP/HAL |
+
+### 核心原则
+1. **单向依赖**：只允许上层调用下层，禁止下层调用上层
+2. **禁止跨层**：尽量避免跨层调用（特殊情况如中断回调除外）
+3. **接口隔离**：每层通过统一接口对外暴露功能
+4. **可替换性**：更换硬件只需修改HAL/BSP层，上层代码无需改动
+
+## 四、BSP层接口规范
+
+每个设备模块应提供统一风格的接口：
+
+```c
+// 初始化/反初始化
+void bsp_xxx_init(void);
+void bsp_xxx_deinit(void);
+
+// 基本操作
+int bsp_xxx_read(uint8_t *data, uint16_t len);
+int bsp_xxx_write(const uint8_t *data, uint16_t len);
+
+// 状态查询
+int bsp_xxx_get_status(void);
+```
+
+## 五、头文件包含规则
+
+| 层级 | 允许包含 | 禁止包含 |
+|------|----------|----------|
+| HAL | 芯片厂商头文件、标准库 | BSP、Middlewares、Service、APP |
+| BSP | HAL层头文件 | Middlewares、Service、APP |
+| Middlewares | HAL、BSP头文件 | Service、APP |
+| Service | Middlewares、BSP、HAL头文件 | APP |
+| APP | Service、Middlewares头文件 | 尽量不直接包含BSP/HAL |
+
+## 六、命名规范
+
+### 文件命名
+- HAL层：`hal_xxx.c/h`（如 `hal_gpio.c`）
+- BSP层：`bsp_xxx.c/h`（如 `bsp_lcd.c`）
+- Service层：`xxx_service.c/h` 或 `xxx_core.c/h`
+- APP层：`app_xxx.c/h` 或 `screen_xxx.c/h`
+
+### 函数命名
+- 使用小写字母和下划线分隔
+- 前缀表明所属层级：`hal_`、`bsp_`、`svc_`、`app_`
+- 示例：`bsp_lcd_draw_pixel()`、`svc_data_parse()`
+
+### 宏定义命名
+- 全部大写，下划线分隔
+- 前缀表明所属模块
+- 示例：`BSP_LCD_WIDTH`、`HAL_UART_BAUDRATE`
+
+## 七、类型定义规范
+
+### typedef后缀规范
+| 类型 | 后缀 | 示例 |
+|------|------|------|
+| 结构体 | `_t` | `button_event_t` |
+| 联合体 | `_union` | `data_convert_union` |
+| 枚举 | `_enum` | `button_state_enum` |
+
+### 函数指针命名
+- 前缀：`pf_`
+- 示例：`typedef void (*pf_callback)(uint8_t data);`
+
+### 枚举成员命名
+- 全部大写，下划线分隔
+- 示例：
+```c
+typedef enum {
+    BUTTON_IDLE,
+    BUTTON_PRESSED,
+    BUTTON_RELEASED
+} button_state_enum;
+```
+
+## 八、函数命名规范
+
+### 静态局部函数
+- 以下划线 `_` 开头
+- 使用小写和下划线
+- 示例：`_usart_tx()`、`_parse_data()`
+
+### 外部接口函数
+- 采用驼峰命名法（PascalCase）
+- 示例：`ConfigUsart()`、`GetSystemState()`
+
+## 九、变量命名规范
+
+### 变量前缀规范
+| 类型 | 前缀 | 示例 |
+|------|------|------|
+| 指针变量 | `p_` | `p_buffer` |
+| 全局变量 | `g_` | `g_system_state` |
+| 静态全局变量 | `s_` | `s_init_flag` |
+| 布尔变量 | `is_`/`has_`/`can_` | `is_running`、`has_data` |
+| 数组/缓冲区 | `_buf` 或 `_arr` 后缀 | `tx_buf`、`data_arr` |
+
+### 变量命名规则
+- 采用下划线分隔法
+- 以功能为开头
+- 示例：
+```c
+typedef struct {
+    bool spk_action;
+    uint8_t spk_volume;
+} spk_event_t;
+```
+
+### 变量大小优化（MCU资源有限）
+| 数值范围 | 推荐类型 |
+|----------|----------|
+| 0 ~ 255 | `uint8_t` |
+| 0 ~ 65535 | `uint16_t` |
+| 超过65535 | `uint32_t` |
+| 带符号小范围 | `int8_t`、`int16_t` |
+
+## 十、回调与中断命名
+
+- 回调函数：`xxx_callback()` 或 `xxx_cb()`
+- 中断处理：`XXX_IRQHandler()`（与厂商库保持一致）
+
+## 十一、头文件规范
+
+### 头文件保护宏
+```c
+#ifndef __MODULE_NAME_H__
+#define __MODULE_NAME_H__
+// ...
+#endif /* __MODULE_NAME_H__ */
+```
+
+### include顺序
+```c
+// 1. 标准库
+#include <stdint.h>
+#include <stdbool.h>
+// 2. 芯片/HAL库
+#include "stm32f1xx.h"
+// 3. 第三方库
+#include "fatfs.h"
+// 4. 自定义头文件
+#include "bsp_lcd.h"
+```
+
+### 静态局部函数声明位置
+- 静态局部函数声明放置在 `.h` 文件的**最后面**
+
+### 头文件注释规范
+- **禁止**在 `.h` 文件内使用 doxygen 注释
+- 采用 `/* */` 或 `//` 简短介绍
+- 示例：
+```c
+/* 初始化LCD模块 */
+void LcdInit(void);
+
+// 设置LCD背光亮度
+void LcdSetBacklight(uint8_t level);
+```
+
+## 十二、模块状态枚举
+
+每个模块创建前需要增加一个 `enum` 状态来代表该模块的状态：
+
+```c
+typedef enum {
+    MODULE_STATE_IDLE,
+    MODULE_STATE_INIT,
+    MODULE_STATE_RUNNING,
+    MODULE_STATE_ERROR
+} module_state_enum;
+```
+
+## 十三、返回值与错误码规范
+
+### 返回值约定
+| 返回值 | 含义 |
+|--------|------|
+| `0` | 成功 |
+| `-1` 或 负数 | 失败/错误码 |
+| `> 0` | 数据长度或特定状态 |
+
+### 模块错误码定义
+每个模块定义独立的错误码枚举：
+```c
+typedef enum {
+    MODULE_OK = 0,
+    MODULE_ERR_PARAM,
+    MODULE_ERR_TIMEOUT,
+    MODULE_ERR_BUSY
+} module_err_enum;
+```
+
+## 十四、魔数处理
+
+- **禁止**直接使用魔数，必须定义为宏或枚举
+- 示例：
+```c
+// 错误示范
+if (count > 256) { ... }
+
+// 正确示范
+#define BUFFER_MAX_SIZE  256
+if (count > BUFFER_MAX_SIZE) { ... }
+```
+
+## 十五、代码生成规则（AI辅助开发）
+
+### 结构体生成规则
+- 在生成模块的结构体前，**必须**与用户确认需要的内容后才能开始生成
+
+### 模块代码生成流程
+1. **禁止**一次性生成 `.h` 和 `.c` 的完整实现
+2. 生成 `.h` 文件时，在 `.c` 文件内**仅生成接口函数名**（空函数体）
+3. **等待用户确认**后，才能生成函数具体实现
+
+示例流程：
+```
+Step 1: 生成 module.h（完整声明）
+Step 2: 生成 module.c（仅函数框架，无实现）
+Step 3: 用户确认
+Step 4: 逐个生成函数实现
+```
+
