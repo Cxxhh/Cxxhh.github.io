@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreeRTOS Scheduler Animation (Optimized)</title>
+    <style>
+        :root {
+            /* Dark Theme Colors */
+            --bg-main: #1e1e1e;
+            --bg-panel: #252526;
+            --border: #333;
+            --text-main: #e0e0e0;
+            --text-sub: #858585;
+            
+            /* State Colors */
+            --color-running: #4caf50;    /* Green */
+            --color-ready: #2196f3;      /* Blue */
+            --color-blocked: #ff9800;    /* Orange */
+            --color-suspended: #f44336;  /* Red */
+            
+            /* Task Colors */
+            --task-high: #ff5252;
+            --task-med: #448aff;
+            --task-low: #69f0ae;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+
+        /* Main Wrapper - Full Screen */
+        .immersive-container {
+            width: 100%;
+            height: 100%;
+            background: var(--bg-panel);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Top: Animation Canvas (Flex Grow) --- */
+        .canvas-area {
+            position: relative;
+            width: 100%;
+            flex: 1;
+            min-height: 0; /* Important for flex child */
+            background: radial-gradient(circle at center, #2d2d30 0%, #1e1e1e 100%);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+        }
+
+        svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+            max-width: 900px; /* Prevent over-stretching on ultra-wide */
+        }
+
+        /* --- Bottom: Control Console (Fixed Height) --- */
+        .console-area {
+            padding: 12px 20px;
+            background: #111;
+            flex-shrink: 0;
+            height: auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* Log Styling */
+        .log-container {
+            margin-bottom: 8px;
+            font-family: 'Consolas', monospace;
+        }
+
+        .log-title {
+            color: var(--color-ready);
+            font-size: 13px;
+            font-weight: bold;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .log-text {
+            font-size: 13px;
+            line-height: 1.4;
+            color: #ccc;
+            min-height: 38px; /* Holds 2 lines */
+        }
+
+        .highlight { color: #fff; font-weight: bold; }
+        .hl-high { color: var(--task-high); }
+        .hl-med { color: var(--task-med); }
+        .hl-low { color: var(--task-low); }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            border-top: 1px solid #333;
+            padding-top: 8px;
+        }
+
+        button {
+            background: #333;
+            border: 1px solid #555;
+            color: #eee;
+            padding: 5px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        button:hover { background: #444; border-color: #777; }
+        button:active { transform: translateY(1px); }
+        button#btn-play { background: var(--color-running); border-color: var(--color-running); color: #000; font-weight: bold; }
+        button#btn-play:hover { background: #43a047; }
+
+        /* --- SVG Animation Classes --- */
+        
+        .state-bg {
+            fill: rgba(255,255,255,0.02);
+            stroke: #444;
+            stroke-width: 2;
+            rx: 8;
+        }
+
+        .state-label {
+            font-size: 14px;
+            font-weight: bold;
+            text-anchor: middle;
+            fill: #777;
+            text-transform: uppercase;
+        }
+
+        /* Task Cards */
+        .task-group {
+            cursor: pointer;
+            transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .task-card {
+            fill: #333;
+            stroke: #fff;
+            stroke-width: 1.5;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));
+        }
+
+        .task-name { fill: #fff; font-size: 12px; font-weight: bold; text-anchor: middle; pointer-events: none; }
+        .task-prio { fill: rgba(255,255,255,0.7); font-size: 10px; text-anchor: middle; pointer-events: none; }
+
+        /* Animation Effects */
+        .pulse {
+            animation: pulse-animation 1.5s infinite ease-in-out;
+        }
+
+        @keyframes pulse-animation {
+            0% { stroke-width: 2; stroke: #fff; filter: drop-shadow(0 0 2px var(--color-running)); }
+            50% { stroke-width: 4; stroke: #81c784; filter: drop-shadow(0 0 10px var(--color-running)); }
+            100% { stroke-width: 2; stroke: #fff; filter: drop-shadow(0 0 2px var(--color-running)); }
+        }
+
+        .path-line {
+            fill: none;
+            stroke: #444;
+            stroke-width: 2;
+            stroke-dasharray: 4,4;
+            opacity: 0.5;
+        }
+
+        /* Progress Bar */
+        .progress-bar-bg {
+            height: 3px;
+            width: 100%;
+            background: #333;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--color-ready);
+            width: 0%;
+            transition: width 0.3s linear;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="immersive-container">
+    <!-- SVG Area -->
+    <div class="canvas-area">
+        <svg viewBox="0 0 800 450" id="mainSvg">
+            <defs>
+                <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                    <path d="M0,0 L0,6 L9,3 z" fill="#444" />
+                </marker>
+            </defs>
+
+            <!-- Paths (Ladder Layout for Zero Crossing) -->
+            
+            <!-- 1. Ready -> Running (Top Horizontal) -->
+            <path d="M 280 90 L 440 90" class="path-line" marker-end="url(#arrow)" />
+            
+            <!-- 2. Running -> Ready (Preempt) (Parallel Horizontal) -->
+            <path d="M 440 120 L 290 120" class="path-line" marker-end="url(#arrow)" />
+            
+            <!-- 3. Running -> Blocked (Vertical Down) -->
+            <path d="M 560 140 L 560 170" class="path-line" marker-end="url(#arrow)" />
+            
+            <!-- 4. Blocked -> Ready (Horizontal Return) -->
+            <path d="M 440 240 L 290 240" class="path-line" marker-end="url(#arrow)" />
+            
+            <!-- 5. Running -> Suspended (Outer Curve) -->
+            <path d="M 670 90 C 760 90, 760 370, 670 370" class="path-line" opacity="0.3" marker-end="url(#arrow)" />
+
+            <!-- 6. Suspended -> Ready (Bottom Return) -->
+             <path d="M 440 370 L 290 370" class="path-line" opacity="0.3" marker-end="url(#arrow)" />
+
+            <!-- ZONES -->
+            
+            <!-- Ready Zone (Left Column) -->
+            <rect x="60" y="40" width="220" height="360" class="state-bg" style="stroke: var(--color-ready)" />
+            <text x="170" y="30" class="state-label" style="fill: var(--color-ready)">Ready List (就绪)</text>
+
+            <!-- Running Zone (Top Right) -->
+            <rect x="450" y="40" width="220" height="100" class="state-bg" id="zone-running" style="stroke: var(--color-running); stroke-width: 2;" />
+            <text x="560" y="30" class="state-label" style="fill: var(--color-running)">Running (CPU)</text>
+
+            <!-- Blocked Zone (Mid Right) -->
+            <rect x="450" y="180" width="220" height="120" class="state-bg" style="stroke: var(--color-blocked)" />
+            <text x="560" y="170" class="state-label" style="fill: var(--color-blocked)">Blocked (阻塞)</text>
+
+            <!-- Suspended Zone (Bottom Right) -->
+            <rect x="450" y="340" width="220" height="60" class="state-bg" style="stroke: var(--color-suspended)" />
+            <text x="560" y="330" class="state-label" style="fill: var(--color-suspended)">Suspended</text>
+
+
+            <!-- TASKS (Grouped for animation) -->
+            <!-- Low Priority -->
+            <g id="task-low" class="task-group" transform="translate(110, 280)">
+                <rect width="120" height="50" rx="6" class="task-card" fill="#1e3a29" style="stroke: var(--task-low)" />
+                <text x="60" y="20" class="task-name">Task Low</text>
+                <text x="60" y="38" class="task-prio">Prio: 1 (Idle)</text>
+            </g>
+
+            <!-- Medium Priority -->
+            <g id="task-med" class="task-group" transform="translate(110, 180)">
+                <rect width="120" height="50" rx="6" class="task-card" fill="#1e2a3a" style="stroke: var(--task-med)" />
+                <text x="60" y="20" class="task-name">Task Med</text>
+                <text x="60" y="38" class="task-prio">Prio: 2 (Normal)</text>
+            </g>
+
+            <!-- High Priority -->
+            <g id="task-high" class="task-group" transform="translate(110, 80)">
+                <rect width="120" height="50" rx="6" class="task-card" fill="#3a1e1e" style="stroke: var(--task-high)" />
+                <text x="60" y="20" class="task-name">Task High</text>
+                <text x="60" y="38" class="task-prio">Prio: 3 (Realtime)</text>
+            </g>
+
+        </svg>
+        <!-- Progress Bar -->
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress"></div></div>
+    </div>
+
+    <!-- Console Area -->
+    <div class="console-area">
+        <div class="log-container">
+            <div class="log-title">
+                <span style="width: 8px; height: 8px; background: var(--color-ready); border-radius: 50%; display: inline-block;"></span>
+                SYSTEM LOG
+            </div>
+            <div class="log-text" id="log-display">
+                System initialized. Waiting for scheduler...
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button onclick="togglePlay()" id="btn-play">▶ 播放演示</button>
+            <button onclick="resetDemo()">↺ 重置</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    /*
+     * Coordinates for the State Machine
+     * These align with the SVG coordinates above
+     */
+    const POS = {
+        ready: [
+            { x: 110, y: 80 },  // High Slot
+            { x: 110, y: 180 }, // Med Slot
+            { x: 110, y: 280 }  // Low Slot
+        ],
+        running: { x: 500, y: 65 }, // Centered in Running Box
+        blocked: [
+            { x: 500, y: 215 }, // Slot 1
+            { x: 500, y: 215 }  // Stacked for simplicity
+        ],
+        suspended: { x: 500, y: 345 }
+    };
+
+    const tasks = {
+        high: document.getElementById('task-high'),
+        med: document.getElementById('task-med'),
+        low: document.getElementById('task-low')
+    };
+
+    // Helper to add 'pulse' effect to running task
+    function setRunningEffect(taskKey, isRunning) {
+        const rect = tasks[taskKey].querySelector('rect');
+        if (isRunning) {
+            rect.classList.add('pulse');
+            // Move to front (in SVG, last child is on top)
+            tasks[taskKey].parentNode.appendChild(tasks[taskKey]);
+        } else {
+            rect.classList.remove('pulse');
+        }
+    }
+
+    function move(taskKey, stateName, slot = 0) {
+        const el = tasks[taskKey];
+        let tx, ty;
+
+        // Turn off effects first
+        setRunningEffect(taskKey, false);
+
+        if (stateName === 'ready') {
+            tx = POS.ready[slot].x;
+            ty = POS.ready[slot].y;
+        } else if (stateName === 'running') {
+            tx = POS.running.x;
+            ty = POS.running.y;
+            setTimeout(() => setRunningEffect(taskKey, true), 600); // Wait for transition
+        } else if (stateName === 'blocked') {
+            tx = POS.blocked[slot].x;
+            ty = POS.blocked[slot].y;
+        } else if (stateName === 'suspended') {
+            tx = POS.suspended.x;
+            ty = POS.suspended.y;
+        }
+
+        el.style.transform = `translate(${tx}px, ${ty}px)`;
+    }
+
+    // --- Scenario Script ---
+    const SCENARIO = [
+        {
+            msg: "<b>系统启动 (Tick 0)</b><br>三个任务已创建并放入就绪列表 (Ready List)。",
+            action: () => {
+                move('high', 'ready', 0);
+                move('med', 'ready', 1);
+                move('low', 'ready', 2);
+            },
+            time: 2000
+        },
+        {
+            msg: "<b>调度器选择 (Context Switch)</b><br>选择最高优先级的 <span class='hl-high'>Task High</span> 进入运行状态。",
+            action: () => {
+                move('high', 'running');
+            },
+            time: 3000
+        },
+        {
+            msg: "<b>API 调用: vTaskDelay()</b><br><span class='hl-high'>Task High</span> 需要等待数据，主动阻塞。CPU 让出。",
+            action: () => {
+                move('high', 'blocked');
+            },
+            time: 2500
+        },
+        {
+            msg: "<b>任务切换</b><br>CPU 空闲，调度器选择次高优先级的 <span class='hl-med'>Task Med</span>。",
+            action: () => {
+                move('med', 'running');
+            },
+            time: 3000
+        },
+        {
+            msg: "<b><span style='color:orange'>⚠️ 抢占发生 (Preemption)</span></b><br><span class='hl-high'>Task High</span> 延时结束，回到 Ready。因优先级更高，它立即抢占 CPU！",
+            action: () => {
+                move('high', 'ready', 0); // High appears in ready
+            },
+            time: 1500
+        },
+        {
+            msg: "<b>抢占执行</b><br><span class='hl-med'>Task Med</span> 被迫回到就绪列表。<span class='hl-high'>Task High</span> 重新获得控制权。",
+            action: () => {
+                move('med', 'ready', 1); // Med kicked out
+                setTimeout(() => move('high', 'running'), 300); // High moves in
+            },
+            time: 3500
+        },
+        {
+            msg: "<b>API 调用: vTaskSuspend()</b><br><span class='hl-high'>Task High</span> 完成工作，挂起自己（移出调度）。",
+            action: () => {
+                move('high', 'suspended');
+            },
+            time: 2500
+        },
+        {
+            msg: "<b>恢复运行</b><br><span class='hl-med'>Task Med</span> 再次获得 CPU。",
+            action: () => {
+                move('med', 'running');
+            },
+            time: 2500
+        },
+        {
+            msg: "<b>阻塞让权</b><br><span class='hl-med'>Task Med</span> 请求信号量并阻塞。终于轮到 <span class='hl-low'>Task Low</span> 了！",
+            action: () => {
+                move('med', 'blocked');
+                setTimeout(() => move('low', 'running'), 500);
+            },
+            time: 4000
+        },
+        {
+            msg: "<b>演示循环结束</b><br>即将重置状态...",
+            action: () => {},
+            time: 1000
+        }
+    ];
+
+    let stepIndex = 0;
+    let isPlaying = false;
+    let timer = null;
+
+    function updateLog(html) {
+        const logEl = document.getElementById('log-display');
+        logEl.style.opacity = 0;
+        setTimeout(() => {
+            logEl.innerHTML = html;
+            logEl.style.opacity = 1;
+        }, 200);
+    }
+
+    function runStep() {
+        if (!isPlaying) return;
+        
+        const step = SCENARIO[stepIndex];
+        
+        // Progress bar logic
+        const pct = ((stepIndex + 1) / SCENARIO.length) * 100;
+        document.getElementById('progress').style.width = pct + "%";
+
+        updateLog(step.msg);
+        step.action();
+
+        timer = setTimeout(() => {
+            stepIndex++;
+            if (stepIndex >= SCENARIO.length) {
+                stepIndex = 0; // Loop
+                // Small pause at end before loop
+                setTimeout(runStep, 1000);
+            } else {
+                runStep();
+            }
+        }, step.time);
+    }
+
+    function togglePlay() {
+        const btn = document.getElementById('btn-play');
+        if (isPlaying) {
+            isPlaying = false;
+            clearTimeout(timer);
+            btn.innerHTML = "▶ 继续演示";
+            btn.style.background = "#333";
+            btn.style.color = "#eee";
+        } else {
+            isPlaying = true;
+            btn.innerHTML = "⏸ 暂停演示";
+            btn.style.background = "var(--color-running)";
+            btn.style.color = "#000";
+            runStep();
+        }
+    }
+
+    function resetDemo() {
+        isPlaying = false;
+        clearTimeout(timer);
+        stepIndex = 0;
+        
+        document.getElementById('progress').style.width = "0%";
+        document.getElementById('btn-play').innerHTML = "▶ 播放演示";
+        document.getElementById('btn-play').style.background = "#333";
+        document.getElementById('btn-play').style.color = "#eee";
+        
+        updateLog("系统已重置。准备就绪。");
+        
+        // Reset Visuals
+        move('high', 'ready', 0);
+        move('med', 'ready', 1);
+        move('low', 'ready', 2);
+    }
+
+    // Initialize layout
+    resetDemo();
+    // Auto start after a moment
+    setTimeout(togglePlay, 1000);
+
+</script>
+
+</body>
+</html>

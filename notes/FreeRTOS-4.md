@@ -98,3 +98,124 @@ FreeRTOS 是一个抢占式（Preemptive）的实时操作系统。
     *   当多个任务处于**相同的高优先级**时，它们会轮流执行（时间片轮转）。
 *   **注意事项**：
     *   如果有一个高优先级任务通过死循环一直执行（且不调用阻塞延时函数如 `vTaskDelay`），低优先级任务将永远得不到执行机会（被“饿死”）。
+
+---
+
+## 5. 任务状态 (Task States)
+
+FreeRTOS 中的任务永远处于以下四种状态之一：
+
+1.  **运行态 (Running)**:
+    *   当前正在 CPU 上执行的任务。在单核处理器上，任何时刻只有一个任务处于运行态。
+2.  **就绪态 (Ready)**:
+    *   任务已经准备好执行，但由于有一个同优先级或更高优先级的任务正在运行，因此暂时无法执行。
+3.  **阻塞态 (Blocked)**:
+    *   任务正在等待某个事件（如延时结束、信号量、队列消息）。
+    *   处于阻塞态的任务**不占用 CPU 资源**。
+    *   这是任务最常见的状态，通常通过调用 `vTaskDelay`、`xQueueReceive` 等函数进入。
+4.  **挂起态 (Suspended)**:
+    *   任务被显式挂起（调用 `vTaskSuspend`）。
+    *   挂起的任务对调度器是不可见的，无论优先级多高都不会被执行，直到被恢复（调用 `vTaskResume`）。
+
+### 状态转换关系
+
+| 原状态 | 目标状态 | 触发条件 |
+|--------|----------|----------|
+| Ready | Running | 调度器选择执行 |
+| Running | Ready | 被高优先级抢占 / 时间片用完 |
+| Running | Blocked | 等待事件 / 延时 |
+| Running | Suspended | 调用 `vTaskSuspend()` |
+| Blocked | Ready | 事件发生 / 超时 |
+| Blocked | Suspended | 调用 `vTaskSuspend()` |
+| Ready | Suspended | 调用 `vTaskSuspend()` |
+| Suspended | Ready | 调用 `vTaskResume()` |
+
+---
+
+## 6. 任务延时
+
+任务延时函数是实现多任务调度的关键，它允许任务主动放弃 CPU 使用权，进入阻塞态，从而让低优先级任务有机会运行。
+
+### 6.1 相对延时 (`vTaskDelay`)
+
+```c
+void vTaskDelay( const TickType_t xTicksToDelay );
+```
+
+*   **功能**：使任务进入阻塞态，持续 `xTicksToDelay` 个系统时钟节拍（Tick）。
+*   **特点**：**相对时间**。延时是从调用该函数的那一刻开始计算的。
+*   **应用场景**：简单的延时，不要求严格的周期性。
+*   **示例**：`vTaskDelay(pdMS_TO_TICKS(1000));` // 延时 1000 毫秒
+
+### 6.2 绝对延时 (`vTaskDelayUntil`)
+
+```c
+void vTaskDelayUntil( TickType_t * const pxPreviousWakeTime, const TickType_t xTimeIncrement );
+```
+
+*   **功能**：使任务进入阻塞态，直到系统时间达到某个绝对时刻。
+*   **特点**：**绝对时间**。常用于实现精确的周期性任务（如每 50ms 采样一次）。它会自动补偿任务执行消耗的时间。
+*   **参数**：
+    *   `pxPreviousWakeTime`: 指向一个变量，保存上一次唤醒的时间。初次使用前需初始化为当前时间。
+    *   `xTimeIncrement`: 周期时间（Ticks）。
+
+**代码示例：**
+
+```c
+void vTaskCode( void * pvParameters )
+{
+    TickType_t xLastWakeTime;
+    const TickType_t xFrequency = pdMS_TO_TICKS( 50 ); // 50ms 周期
+
+    // 初始化 xLastWakeTime 为当前时间
+    xLastWakeTime = xTaskGetTickCount();
+
+    for( ;; )
+    {
+        // 等待下一个周期。注意这里传递的是地址 &xLastWakeTime
+        vTaskDelayUntil( &xLastWakeTime, xFrequency );
+
+        // 执行周期性任务...
+        // 无论这里的代码执行了多久（只要小于50ms），
+        // 下次唤醒总是在 (Start + 50ms), (Start + 100ms)... 
+    }
+}
+```
+
+---
+
+## 7. 任务挂起与恢复
+
+用于暂停和恢复任务的执行，通常用于临时的控制逻辑。
+
+### 7.1 挂起任务 (`vTaskSuspend`)
+
+```c
+void vTaskSuspend( TaskHandle_t xTaskToSuspend );
+```
+
+*   将任务设置为**挂起态**。
+*   传入 `NULL` 则挂起当前任务自己。
+*   挂起态的任务**永远不会超时**，必须由其他任务唤醒。
+
+### 7.2 恢复任务 (`vTaskResume`)
+
+```c
+void vTaskResume( TaskHandle_t xTaskToResume );
+```
+
+*   将挂起的任务重新移回**就绪态**。
+*   **注意**：不要在中断服务函数（ISR）中调用此函数，应使用 `xTaskResumeFromISR()`。
+
+---
+
+## 8. 空闲任务 (Idle Task)
+
+*   **创建**：当调用 `vTaskStartScheduler()` 启动调度器时，内核会自动创建一个空闲任务。
+*   **优先级**：最低优先级 (0)。
+*   **职责**：
+    1.  当没有其他就绪任务时，运行空闲任务，保证系统总有任务在运行。
+    2.  **回收被删除任务的内存**（针对动态创建的任务）。
+*   **空闲任务钩子 (Idle Hook)**：
+    *   用户可以定义 `vApplicationIdleHook()` 函数，让空闲任务在运行时执行特定代码（如进入低功耗模式、喂狗等）。
+    *   **注意**：钩子函数不能调用导致阻塞的 API。
