@@ -4,6 +4,39 @@
   
   
   <entry>
+    <title>BMAD 角色分析在嵌入式系统中的应用（STM32）</title>
+    <link href="/2025/12/15/bmad_roles_analysis_stm32/"/>
+    <url>/2025/12/15/bmad_roles_analysis_stm32/</url>
+    
+    <content type="html"><![CDATA[<h1 id="BMAD-角色分析及其在嵌入式开发中的适用性"><a href="#BMAD-角色分析及其在嵌入式开发中的适用性" class="headerlink" title="BMAD 角色分析及其在嵌入式开发中的适用性"></a>BMAD 角色分析及其在嵌入式开发中的适用性</h1><p>本文档分析了在 <code>.cursor/rules/bmad</code> 中找到的 BMAD（行为模型自适应）角色，以及它们在嵌入式系统开发中的具体应用（特别是 STM32&#x2F;32位微控制器）。</p><span id="more"></span><h2 id="角色分析"><a href="#角色分析" class="headerlink" title="角色分析"></a>角色分析</h2><h3 id="1-架构师-Winston-🏗️"><a href="#1-架构师-Winston-🏗️" class="headerlink" title="1. 架构师 (Winston) - 🏗️"></a>1. 架构师 (Winston) - 🏗️</h3><p><strong>角色：</strong> 整体系统架构师和技术负责人。<br><strong>一般职责：</strong> 系统设计、技术选型、API 设计、基础设施规划。<br><strong>对 STM32 的重要性：</strong> <strong>关键</strong></p><p><strong>嵌入式特定职责：</strong></p><ul><li><strong>硬件抽象：</strong> 根据性能需求，在 HAL（硬件抽象层）、LL（底层）或直接寄存器访问之间做出选择。</li><li><strong>RTOS 策略：</strong> 在 FreeRTOS、ThreadX、Zephyr 或裸机架构之间进行选择。</li><li><strong>资源管理：</strong> 内存映射（Flash&#x2F;RAM 分区）、DMA 通道分配、中断优先级分组。</li><li><strong>电源架构：</strong> 设计睡眠模式和唤醒策略以满足功耗预算。</li><li><strong>通信协议：</strong> 定义基于 UART&#x2F;SPI&#x2F;I2C&#x2F;CAN 的自定义协议。</li></ul><h3 id="2-Dev-James-💻"><a href="#2-Dev-James-💻" class="headerlink" title="2. Dev (James) - 💻"></a>2. Dev (James) - 💻</h3><p><strong>角色：</strong> 全栈开发工程师（在此上下文中为固件工程师）。<br><strong>一般职责：</strong> 实现、调试、重构。<br><strong>对 STM32 的重要性：</strong> <strong>关键</strong></p><p><strong>嵌入式特定职责：</strong></p><ul><li><strong>驱动实现：</strong> 编写与 STM32 外设（定时器、ADC、GPIO）交互的代码。</li><li><strong>业务逻辑：</strong> 实现设备状态机和传感器处理算法。</li><li><strong>调试：</strong> 分析栈使用情况、堆碎片和硬件故障（HardFault_Handler）。</li><li><strong>优化：</strong> 针对大小（Flash）或速度（MIPS）优化代码。</li></ul><h3 id="3-QA-Quinn-🧪"><a href="#3-QA-Quinn-🧪" class="headerlink" title="3. QA (Quinn) - 🧪"></a>3. QA (Quinn) - 🧪</h3><p><strong>角色：</strong> 测试架构师和质量顾问。<br><strong>一般职责：</strong> 测试架构、质量门禁、风险评估。<br><strong>对 STM32 的重要性：</strong> <strong>高</strong></p><p><strong>嵌入式特定职责：</strong></p><ul><li><strong>HIL 测试：</strong> 定义硬件在环测试。</li><li><strong>单元测试：</strong> 实现目标板或基于主机的单元测试（例如 Ceedling、GoogleTest）。</li><li><strong>非功能性需求：</strong> 验证实时约束（延迟&#x2F;抖动）、功耗曲线和栈溢出保护。</li><li><strong>可靠性：</strong> 长时间运行测试（浸泡测试）以检测内存泄漏。</li></ul><h3 id="4-PO-Sarah-📝"><a href="#4-PO-Sarah-📝" class="headerlink" title="4. PO (Sarah) - 📝"></a>4. PO (Sarah) - 📝</h3><p><strong>角色：</strong> 产品负责人。<br><strong>一般职责：</strong> 待办事项管理、用户故事细化、验收标准。<br><strong>对 STM32 的重要性：</strong> <strong>高</strong></p><p><strong>嵌入式特定职责：</strong></p><ul><li><strong>需求转换：</strong> 将”设备必须使用电池运行 2 年”转换为”平均电流 &lt; 10uA”。</li><li><strong>故事定义：</strong> “作为用户，我希望电池电量低时 LED 闪烁红色。”</li><li><strong>验收标准：</strong> 定义传感器读数的精确容差。</li></ul><h3 id="5-PM-John-📋"><a href="#5-PM-John-📋" class="headerlink" title="5. PM (John) - 📋"></a>5. PM (John) - 📋</h3><p><strong>角色：</strong> 产品经理。<br><strong>一般职责：</strong> PRD（产品需求文档）、产品策略、功能优先级、路线图规划。<br><strong>对 STM32 的重要性：</strong> <strong>中等&#x2F;高</strong></p><p><strong>嵌入式特定职责：</strong></p><ul><li><strong>硬件生命周期：</strong> 将固件功能与硬件板版本（Rev A、Rev B）对齐。</li><li><strong>合规性：</strong> 确保固件符合监管标准（FCC&#x2F;CE&#x2F;IEC）。</li></ul><h3 id="6-UX-专家-Sally-🎨"><a href="#6-UX-专家-Sally-🎨" class="headerlink" title="6. UX 专家 (Sally) - 🎨"></a>6. UX 专家 (Sally) - 🎨</h3><p><strong>角色：</strong> UX 设计师。<br><strong>一般职责：</strong> UI&#x2F;UX 设计、线框图。<br><strong>对 STM32 的重要性：</strong> <strong>取决于项目</strong>（GUI 项目高，无头设备低）</p><p><strong>嵌入式特定职责：</strong></p><ul><li><strong>GUI 设计：</strong> 如果 STM32 有显示屏，为 TouchGFX&#x2F;Embedded Wizard&#x2F;LVGL 设计界面。</li><li><strong>人机交互：</strong> 设计 LED 闪烁模式和按键行为（短按与长按）以提供用户反馈。</li></ul><h3 id="7-分析师-Mary-📊"><a href="#7-分析师-Mary-📊" class="headerlink" title="7. 分析师 (Mary) - 📊"></a>7. 分析师 (Mary) - 📊</h3><p><strong>角色：</strong> 业务分析师。<br><strong>一般职责：</strong> 市场研究、头脑风暴。<br><strong>对 STM32 的重要性：</strong> <strong>中等</strong></p><p><strong>嵌入式特定职责：</strong></p><ul><li><strong>传感器选择：</strong> 研究满足成本&#x2F;性能要求的可用传感器。</li><li><strong>竞争分析：</strong> 分析竞争对手设备的拆解和功能集。</li></ul><h3 id="8-SM-Bob-🏃"><a href="#8-SM-Bob-🏃" class="headerlink" title="8. SM (Bob) - 🏃"></a>8. SM (Bob) - 🏃</h3><p><strong>角色：</strong> Scrum Master。<br><strong>一般职责：</strong> 流程指导、故事准备。<br><strong>对 STM32 的重要性：</strong> <strong>中等</strong></p><p><strong>嵌入式特定职责：</strong></p><ul><li><strong>工作流管理：</strong> 帮助团队管理硬件依赖（例如，”开发板尚未到达”）。</li></ul><h3 id="9-BMAD-编排器和主控-🎭-🧙"><a href="#9-BMAD-编排器和主控-🎭-🧙" class="headerlink" title="9. BMAD 编排器和主控 - 🎭&#x2F;🧙"></a>9. BMAD 编排器和主控 - 🎭&#x2F;🧙</h3><p><strong>角色：</strong> 协调和任务执行。<br><strong>重要性：</strong> <strong>元级别</strong>（用户工具）</p><ul><li><strong>功能：</strong> 帮助开发者在项目期间有效地在这些角色之间切换。</li></ul><hr><h2 id="结论：STM32-开发中的关键角色"><a href="#结论：STM32-开发中的关键角色" class="headerlink" title="结论：STM32 开发中的关键角色"></a>结论：STM32 开发中的关键角色</h2><p>对于典型的 STM32 嵌入式项目，最常用和关键的角色是：</p><ol><li><strong>Architect</strong>：确保受限资源（Flash&#x2F;RAM&#x2F;MIPS）得到正确使用，系统健壮可靠。</li><li><strong>Dev</strong>：编写底层 C 代码。</li><li><strong>QA</strong>：验证代码与物理世界的正确交互。</li><li><strong>PO</strong>：定义硬件的具体行为。</li></ol>]]></content>
+    
+    
+    <categories>
+      
+      <category>Analysis</category>
+      
+    </categories>
+    
+    
+    <tags>
+      
+      <tag>STM32</tag>
+      
+      <tag>BMAD</tag>
+      
+      <tag>Embedded</tag>
+      
+      <tag>Roles</tag>
+      
+      <tag>AI Agents</tag>
+      
+    </tags>
+    
+  </entry>
+  
+  
+  
+  <entry>
     <title>FreeRTOS 任务管理：创建、删除与调度</title>
     <link href="/2025/12/06/freertos-task-management/"/>
     <url>/2025/12/06/freertos-task-management/</url>
@@ -22,9 +55,9 @@
     
     <tags>
       
-      <tag>FreeRTOS</tag>
-      
       <tag>嵌入式</tag>
+      
+      <tag>FreeRTOS</tag>
       
       <tag>RTOS</tag>
       
@@ -55,9 +88,9 @@
     
     <tags>
       
-      <tag>FreeRTOS</tag>
-      
       <tag>嵌入式</tag>
+      
+      <tag>FreeRTOS</tag>
       
       <tag>RTOS</tag>
       
